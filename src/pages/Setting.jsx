@@ -78,7 +78,7 @@ export default function Setting() {
                     </Alert> */}
 
                     <Form.Group className="mb-4">
-                        <Form.Label className="fw-bold small">MAX CONCURRENCY</Form.Label>
+                        <Form.Label className="fw-bold small">MAX CONCURRENCY (Host Ping)</Form.Label>
                         <InputGroup>
                             <InputGroup.Text className="bg-light"><Zap size={18}/></InputGroup.Text>
                             <Form.Control type="number" value={config.maxConcurrency} onChange={(e) => handleChange("maxConcurrency", e.target.value)} />

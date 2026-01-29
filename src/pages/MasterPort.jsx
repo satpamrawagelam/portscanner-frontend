@@ -44,6 +44,7 @@ export default function MasterPort() {
 
   const handleAdd = async () => {
     if (!newPort) return toast.warn("Nomor Port wajib diisi");
+    if (newDesc.trim() == "") return toast.warn("Deskripsi tidak valid") 
     
     const isExist = ports.some(p => p.pm_portNumber === Number(newPort));
     if (isExist) return toast.error(`Port ${newPort} sudah ada di group ini!`);

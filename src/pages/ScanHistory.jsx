@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Card, Table, Badge, Form, InputGroup, Spinner, Button, Tabs, Tab } from "react-bootstrap";
 import { FileText, Search, Calendar, Server, Globe, ShieldAlert, CheckCircle, ChevronLeft, ChevronRight, Clock, Play, Download } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
@@ -17,6 +17,11 @@ export default function ScanHistory() {
 
     const [searchParams] = useSearchParams();
     const filterSchId = searchParams.get("schId"); 
+    const toastShownRef = useRef(false);
+
+    useEffect(() => {
+        toastShownRef.current = false;
+    }, [filterSchId]);
 
     useEffect(() => {
         fetch(`${API}/History/GetHistory`) 
@@ -30,45 +35,44 @@ export default function ScanHistory() {
         if (filterSchId) {
             setActiveTab("scheduled");
             
-            setLoading(true);
+            // setLoading(true);
             fetch(`${API}/Schedule/Get/${filterSchId}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data && data.sch_title) {
                         setSearchTerm(data.sch_title);
-                        toast.info(`Memfilter hasil untuk: ${data.sch_title}`);
+                        if(!toastShownRef.current){
+                            toast.info(`Memfilter hasil untuk: ${data.sch_title}`);
+                            toastShownRef.current = true;
+                        }
                     }
                 })
                 .catch(err => console.error("Gagal load filter info", err))
-                .finally(() => setLoading(false));
+                // .finally(() => setLoading(false));
         }
     }, [filterSchId]);
 
     useEffect(() => {
         setCurrentPage(1);
         if (!filterSchId) {
-             // setSearchTerm(""); // Opsional: Aktifkan jika ingin search hilang saat ganti tab
+            //  setSearchTerm(""); // Aktifkan jika ingin search hilang saat ganti tab
         }
     }, [activeTab, filterSchId]);
 
-    // --- HELPER FORMAT DATE ---
     const formatDate = (dateString) => {
         const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
         return new Date(dateString).toLocaleDateString('id-ID', options);
     };
 
-    // --- LOGIC FILTER DATA ---
     const getFilteredData = () => {
         let tabData = rawData;
         
-        // Filter by Tab
         if (activeTab === "manual") {
             tabData = rawData.filter(item => item.scanType !== 'Scheduled Scan');
         } else {
             tabData = rawData.filter(item => item.scanType === 'Scheduled Scan');
         }
 
-        // Filter by Search Term
         if (!searchTerm) return tabData;
 
         const term = searchTerm.toLowerCase();
@@ -77,7 +81,7 @@ export default function ScanHistory() {
             return (
                 (item.branchName || "").toLowerCase().includes(term) ||
                 (item.ipAddress || "").includes(term) ||
-                (item.scanTitle || "").toLowerCase().includes(term) || // Ini yang menangkap Judul Jadwal
+                (item.scanTitle || "").toLowerCase().includes(term) || 
                 dateStr.includes(term) 
             );
         });
@@ -85,7 +89,6 @@ export default function ScanHistory() {
 
     const filteredData = getFilteredData();
 
-    // --- LOGIC EXPORT CSV ---
     const exportToCsv = () => {
         if (filteredData.length === 0) {
             toast.warn("Tidak ada data untuk diexport");

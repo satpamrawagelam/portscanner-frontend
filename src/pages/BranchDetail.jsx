@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, Row, Col, Badge, Button, Spinner } from "react-bootstrap";
-import { ArrowLeft, Server, ShieldAlert, ShieldCheck, Globe, Activity } from "lucide-react";
+import { ArrowLeft, Server, ShieldAlert, ShieldCheck, Globe, Activity, Lock } from "lucide-react"; // Tambah icon Lock
 
 const API = "http://localhost:7155/api";
 
 export default function BranchDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
-  
+   
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -24,8 +24,8 @@ export default function BranchDetail() {
       .then((fetchedData) => {
         if (fetchedData && fetchedData.results) {
             fetchedData.results.sort((a, b) => {
-                const openA = a.ports.filter(p => p.status).length;
-                const openB = b.ports.filter(p => p.status).length;
+                const openA = a.ports.filter(p => p.status && p.port !== 0).length;
+                const openB = b.ports.filter(p => p.status && p.port !== 0).length;
                 return openB - openA; 
             });
         }
@@ -40,7 +40,7 @@ export default function BranchDetail() {
       switch(sev) {
           case 'high': return 'danger';   
           case 'medium': return 'warning'; 
-          default: return 'info';         
+          default: return 'info';          
       }
   };
 
@@ -75,16 +75,17 @@ export default function BranchDetail() {
                     <Activity size={14}/> Monitoring Status
                     <Badge bg="secondary" className="rounded-pill ms-1">{data.totalHost} Host Terdaftar</Badge>
                 </div>
-                
              </div>
-             
         </div>
-        <h3 className="d-flex align-items-center fw-bold">{data.branchCidr}</h3>
+        <h3 className="d-flex align-items-center fw-bold text-secondary font-monospace bg-white px-3 py-1 rounded border">
+            {data.branchCidr}
+        </h3>
       </div>
 
       <div className="row g-4">
         {data.results.map((ipResult) => {
-            const openCount = ipResult.ports.filter(p => p.status).length;
+            const validPorts = ipResult.ports.filter(p => p.port !== 0 && p.port !== null);
+            const openCount = validPorts.filter(p => p.status).length;
             const isVulnerable = openCount > 0;
 
             return (
@@ -102,62 +103,74 @@ export default function BranchDetail() {
                                     </Badge>
                                 ) : (
                                     <Badge bg="success" className="d-flex align-items-center gap-1 py-2 px-3">
-                                        <ShieldCheck size={14}/> All Secure
+                                        <ShieldCheck size={14}/> No Ports Open
                                     </Badge>
                                 )}
                             </div>
                         </Card.Header>
                         
                         <Card.Body className="bg-light bg-opacity-25">
-                            <Row className="g-2">
-                                {ipResult.ports.map((p) => {
-                                    const colorVariant = p.status ? getSeverityColor(p.severity) : "light";
-                                    const borderColor = p.status ? `border-${colorVariant}` : "border-secondary border-opacity-25";
-                                    const textColor = p.status ? `text-${colorVariant}` : "text-muted opacity-75";
-                                    
-                                    return (
-                                        <Col xs={6} sm={4} md={3} key={p.port}>
-                                            <div 
-                                                className={`p-2 rounded border text-center position-relative transition-all ${
-                                                    p.status 
-                                                    ? `bg-white ${borderColor} border-2 shadow-sm` 
-                                                    : `bg-white ${borderColor}`
-                                                }`}
-                                                title={p.service}
-                                            >
-                                                <div className={`fw-bold fs-5 mb-0 ${textColor}`}>
-                                                    {p.port}
-                                                </div>
-
-                                                <div style={{fontSize: '0.70rem'}} className={`fw-bold text-uppercase text-truncate ${textColor}`}>
-                                                    {p.status ? p.service || "UNKNOWN" : "CLOSED"}
-                                                </div>
-                                                
-                                                {p.status && (
-                                                    <div className={`position-absolute top-0 start-100 translate-middle badge rounded-pill bg-${colorVariant}`} style={{fontSize: '0.5rem', zIndex: 10}}>
-                                                        {p.severity?.toUpperCase()[0] || "L"}
+                            {validPorts.length > 0 ? (
+                                <Row className="g-2">
+                                    {validPorts.map((p) => {
+                                        const colorVariant = p.status ? getSeverityColor(p.severity) : "light";
+                                        const borderColor = p.status ? `border-${colorVariant}` : "border-secondary border-opacity-25";
+                                        const textColor = p.status ? `text-${colorVariant}` : "text-muted opacity-75";
+                                        
+                                        return (
+                                            <Col xs={6} sm={4} md={3} key={p.port}>
+                                                <div 
+                                                    className={`p-2 rounded border text-center position-relative transition-all ${
+                                                        p.status 
+                                                        ? `bg-white ${borderColor} border-2 shadow-sm` 
+                                                        : `bg-white ${borderColor}`
+                                                    }`}
+                                                    title={p.service}
+                                                >
+                                                    <div className={`fw-bold fs-5 mb-0 ${textColor}`}>
+                                                        {p.port}
                                                     </div>
-                                                )}
-                                            </div>
-                                        </Col>
-                                    );
-                                })}
-                            </Row>
+
+                                                    <div style={{fontSize: '0.70rem'}} className={`fw-bold text-uppercase text-truncate ${textColor}`}>
+                                                        {p.status ? p.service || "UNKNOWN" : "CLOSED"}
+                                                    </div>
+                                                    
+                                                    {p.status && (
+                                                        <div className={`position-absolute top-0 start-100 translate-middle badge rounded-pill bg-${colorVariant}`} style={{fontSize: '0.5rem', zIndex: 10}}>
+                                                            {p.severity?.toUpperCase()[0] || "L"}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </Col>
+                                        );
+                                    })}
+                                </Row>
+                            ) : (
+                                <div className="text-center py-4 text-muted opacity-75 d-flex flex-column align-items-center justify-content-center">
+                                    <div className="bg-success bg-opacity-10 p-3 rounded-circle mb-2">
+                                        <Lock size={24} className="text-success"/>
+                                    </div>
+                                    <small className="fw-bold">No Ports Open.</small>
+                                    {/* <small style={{fontSize: '10px'}}>Secured.</small> */}
+                                </div>
+                            )}
                         </Card.Body>
                         
-                        <Card.Footer className="bg-white border-top-0 py-2">
-                            <div className="d-flex gap-3 justify-content-end">
-                                <small className="d-flex align-items-center gap-1 text-muted" style={{fontSize: '10px'}}>
-                                    <span className="d-inline-block rounded-circle bg-danger" style={{width: 8, height: 8}}></span> High
-                                </small>
-                                <small className="d-flex align-items-center gap-1 text-muted" style={{fontSize: '10px'}}>
-                                    <span className="d-inline-block rounded-circle bg-warning" style={{width: 8, height: 8}}></span> Medium
-                                </small>
-                                <small className="d-flex align-items-center gap-1 text-muted" style={{fontSize: '10px'}}>
-                                    <span className="d-inline-block rounded-circle bg-info" style={{width: 8, height: 8}}></span> Low
-                                </small>
-                            </div>
-                        </Card.Footer>
+                        {isVulnerable && (
+                            <Card.Footer className="bg-white border-top-0 py-2">
+                                <div className="d-flex gap-3 justify-content-end">
+                                    <small className="d-flex align-items-center gap-1 text-muted" style={{fontSize: '10px'}}>
+                                        <span className="d-inline-block rounded-circle bg-danger" style={{width: 8, height: 8}}></span> High
+                                    </small>
+                                    <small className="d-flex align-items-center gap-1 text-muted" style={{fontSize: '10px'}}>
+                                        <span className="d-inline-block rounded-circle bg-warning" style={{width: 8, height: 8}}></span> Medium
+                                    </small>
+                                    <small className="d-flex align-items-center gap-1 text-muted" style={{fontSize: '10px'}}>
+                                        <span className="d-inline-block rounded-circle bg-info" style={{width: 8, height: 8}}></span> Low
+                                    </small>
+                                </div>
+                            </Card.Footer>
+                        )}
                     </Card>
                 </div>
             );

@@ -61,6 +61,28 @@ export default function MasterBranch() {
 
   const handleSave = async () => {
     if (!formName) return toast.warning("Nama Branch wajib diisi");
+    if(formName.trim() == "") return toast.warning("Nama Branch tidak boleh kosong")
+    if (formCidr.trim() == "") return toast.warning("CIDR tidak valid");
+
+    if (formCidr && formCidr.trim() !== "") {
+        // Regex untuk format CIDR IPv4 (x.x.x.x/xx)
+        // ^(\d{1,3}\.){3}      -> 3 blok angka diikuti titik (misal 192.168.1.)
+        // \d{1,3}              -> 1 blok angka terakhir (misal 0)
+        // \/                   -> Garis miring
+        // (3[0-2]|[1-2]?[0-9]) -> Angka subnet 0-32
+        const cidrRegex = /^(\d{1,3}\.){3}\d{1,3}\/(3[0-2]|[1-2]?[0-9])$/;
+
+        if (!cidrRegex.test(formCidr)) {
+            return toast.warn("Format CIDR salah! Contoh: 192.168.1.0/24");
+        }
+
+        // Validasi tambahan: Pastikan setiap blok IP (octet) <= 255
+        const ipPart = formCidr.split('/')[0];
+        const octets = ipPart.split('.');
+        if (octets.some(octet => parseInt(octet) > 255)) {
+            return toast.warn("IP Address tidak valid (Angka melebihi 255)!");
+        }
+    }
 
     setSaving(true);
     const payload = { Branch_name: formName, Branch_cidr: formCidr };
@@ -98,7 +120,6 @@ export default function MasterBranch() {
     }
   };
 
-  // --- LOGIC FILTER & PAGINATION ---
   const filteredData = branches.filter(b => 
     b.branch_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (b.branch_cidr && b.branch_cidr.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -109,7 +130,6 @@ export default function MasterBranch() {
   const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
-  // --- FUNGSI PAGINATION CANGGIH (Consolidated Style) ---
   const renderPagination = (currPage, setPage, totalPages) => {
     if (totalPages <= 1) return null;
 

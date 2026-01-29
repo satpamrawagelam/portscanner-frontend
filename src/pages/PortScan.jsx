@@ -3,18 +3,17 @@ import { Card, Form, Button, Row, Col, ProgressBar, Badge, Dropdown, Tabs, Tab, 
 import { Play, Search, Loader2, Globe, X, ChevronLeft, ChevronRight, CheckCircle, Clock, Calendar, Trash2, Plus, Eye, Edit, Layers, AlertCircle, Server, Radar, XCircle, History } from "lucide-react"; 
 import { toast, ToastContainer } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 
 const API = "http://localhost:7155";
 
 export default function PortScan() {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
 
-  // --- STATE GLOBAL ---
   const [activeTab, setActiveTab] = useState("manual");
   const [branches, setBranches] = useState([]);
   const [portGroups, setPortGroups] = useState([]);
 
-  // --- STATE MANUAL SCAN ---
   const [scanTitle, setScanTitle] = useState("");
   const [selectedBranches, setSelectedBranches] = useState([]); 
   const [portMode, setPortMode] = useState("group");
@@ -22,7 +21,6 @@ export default function PortScan() {
   const [singlePort, setSinglePort] = useState("");
   const [branchSearch, setBranchSearch] = useState(""); 
   
-  // --- STATE SCHEDULED SCAN ---
   const [schedules, setSchedules] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -30,7 +28,6 @@ export default function PortScan() {
   const [editingId, setEditingId] = useState(null);
   const [selectedScheduleDetail, setSelectedScheduleDetail] = useState(null);
 
-  // Form State untuk Schedule
   const [schedTitle, setSchedTitle] = useState("");
   const [schedTime, setSchedTime] = useState("00:00");
   const [schedFreq, setSchedFreq] = useState("Daily");
@@ -40,7 +37,6 @@ export default function PortScan() {
   const [schedPortGroupId, setSchedPortGroupId] = useState("");
   const [schedManualPort, setSchedManualPort] = useState("");
 
-  // --- STATE UI & LOADING ---
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState([]); 
@@ -82,7 +78,8 @@ export default function PortScan() {
     if (selectedBranches.some(b => (b.branch_id || b.id) === (branch.branch_id || branch.id))) {
         toast.info("Branch sudah dipilih.");
     } else {
-        setSelectedBranches([...selectedBranches, branch]);
+        const selectedTemp = [...selectedBranches, branch];
+        setSelectedBranches(selectedTemp);
     }
     setBranchSearch(""); 
   };
@@ -93,6 +90,15 @@ export default function PortScan() {
 
   const handleScan = async () => {
     if (!scanTitle) return toast.warn("Isi Judul Scan!");
+    if (selectedBranches.length === 0) return toast.warn("Pilih minimal 1 Branch!");
+        console.log(selectedBranches);
+    if (portMode === "group" && !portGroupId && portGroupId !== 0 && portGroupId !== "0") {
+        return toast.warn("Pilih Group Port atau opsi All Ports!");
+    }
+    if (portMode === "single" && !singlePort) {
+        return toast.warn("Port Manual wajib diisi!");
+    }
+
     setLoading(true); setResults([]); startFakeProgress();
     try {
         let tempResults = [];
@@ -176,7 +182,6 @@ export default function PortScan() {
   };
 
   const handleDeleteSchedule = async (id) => {
-      if(!window.confirm("Hapus jadwal ini?")) return;
       await fetch(`${API}/api/Schedule/Delete/${id}`, { method: 'POST' });
       fetchSchedules(); toast.success("Terhapus");
   };
@@ -184,6 +189,37 @@ export default function PortScan() {
   const handleAddSchedBranch = (b) => {
       if(!schedSelectedBranches.some(x => x.branch_id === b.branch_id)) setSchedSelectedBranches([...schedSelectedBranches, b]);
       setSchedBranchSearch("");
+  };
+
+  const getPortGroupName = (groupId) => {
+      if (groupId === 0) return "All Ports (Full Scan)";
+      
+      const group = portGroups.find(pg => pg.pg_id === groupId);
+      return group ? group.pg_name : `Group ID: ${groupId}`;
+  };
+
+  const handleToggleStatus = async (id) => {
+      try {
+          const res = await fetch(`${API}/api/Schedule/ToggleStatus/${id}`, { method: 'POST' });
+          if (!res.ok) throw new Error("Gagal update status");
+          
+          fetchSchedules(); // Refresh data biar UI update
+          toast.success("Status jadwal diupdate!");
+      } catch (err) {
+          toast.error(err.message);
+      }
+  };
+
+  // --- FUNGSI PILIH SEMUA BRANCH ---
+  const handleAddAllBranches = () => {
+      setSchedSelectedBranches(branches);
+      setSchedBranchSearch("");
+      toast.info(`Berhasil memilih ${branches.length} branch!`);
+  };
+  const handleAddAllBranchesManual = () => {
+      setSelectedBranches(branches);
+      setSchedBranchSearch("");
+      toast.info(`Berhasil memilih ${branches.length} branch!`);
   };
 
   return (
@@ -211,12 +247,12 @@ export default function PortScan() {
                 <Card.Body className="p-4">
                     <Row className="g-3">
                         <Col md={6}>
-                            <Form.Label className="text-muted small fw-bold text-uppercase">Scan Title</Form.Label>
+                            <Form.Label className="text-muted small fw-bold text-uppercase">Scan Title</Form.Label> <span style={{ color: 'red'}}>*</span>
                             <Form.Control type="text" placeholder="Contoh: Audit Rutin" value={scanTitle} onChange={(e) => setScanTitle(e.target.value)} className="form-control-lg fs-6" />
                         </Col>
                         
                         <Col md={6}>
-                            <Form.Label className="text-muted small fw-bold text-uppercase">Add Target Branch</Form.Label>
+                            <Form.Label className="text-muted small fw-bold text-uppercase">Add Target Branch</Form.Label> <span style={{ color: 'red'}}>*</span>
                             <Dropdown className="w-100">
                                 <Dropdown.Toggle variant="white" className="w-100 text-start d-flex justify-content-between align-items-center border form-control-lg fs-6" style={{ backgroundColor: '#fff' }}>
                                     <span className="text-muted">-- Pilih & Tambahkan Branch --</span>
@@ -224,6 +260,15 @@ export default function PortScan() {
                                 <Dropdown.Menu className="w-100 p-0 shadow-sm border-0" style={{maxHeight: '300px', overflow: 'hidden'}}>
                                     <div className="p-2 border-bottom bg-light sticky-top">
                                         <Form.Control autoFocus placeholder="Cari Nama / CIDR..." value={branchSearch} onChange={(e) => setBranchSearch(e.target.value)} size="sm"/>
+                                        <div 
+                                            className="d-grid mt-2 pb-1 border-bottom"
+                                            onClick={handleAddAllBranchesManual}
+                                            style={{cursor: 'pointer'}}
+                                        >
+                                            <Badge bg="primary" className="p-2 fw-bold text-uppercase d-flex justify-content-center align-items-center gap-2">
+                                                <Plus size={14} strokeWidth={3}/> PILIH SEMUA BRANCH ({branches.length})
+                                            </Badge>
+                                        </div>
                                     </div>
                                     <div style={{maxHeight: '200px', overflowY: 'auto'}}>
                                         {getFilteredBranches(branchSearch).map((b) => (
@@ -456,7 +501,7 @@ export default function PortScan() {
                                          <td className="ps-4">
                                              <div className="fw-bold text-dark">{item.sch_title}</div>
                                              <Badge bg={item.sch_isActive ? "success" : "secondary"} className="text-white bg-opacity-75 small fw-normal">
-                                                {item.sch_isActive ? "Active" : "Paused"}
+                                                {item.sch_isActive ? "Active" : "Inactive"}
                                              </Badge>
                                          </td>
                                          <td>
@@ -469,7 +514,7 @@ export default function PortScan() {
                                              {item.sch_portMode === 'all' ? (
                                                  <Badge bg="danger" className="bg-opacity-10 text-danger border border-danger">ALL PORTS</Badge>
                                              ) : item.sch_portMode === 'group' ? (
-                                                 <Badge bg="info" className="bg-opacity-10 text-info border border-info">Group ID: {item.sch_targetPortGroupId}</Badge>
+                                                 <Badge bg="info" className="bg-opacity-10 text-info border border-info">Group ID: {getPortGroupName(item.sch_targetPortGroupId)}</Badge>
                                              ) : (
                                                  <Badge bg="secondary" className="bg-opacity-10 text-secondary border border-secondary">Port: {item.sch_targetManualPort}</Badge>
                                              )}
@@ -479,6 +524,17 @@ export default function PortScan() {
                                          </td>
                                          <td className="text-end pe-4">
                                              <div className="d-flex justify-content-end gap-2">
+                                                <OverlayTrigger overlay={<Tooltip>{item.sch_isActive ? "Matikan Jadwal" : "Hidupkan Jadwal"}</Tooltip>}>
+                                                    <div className="d-flex align-items-center me-2 border-end pe-3"> {/* Garis pemisah biar rapi */}
+                                                        <Form.Check 
+                                                            type="switch"
+                                                            id={`switch-${item.sch_id}`}
+                                                            checked={item.sch_isActive}
+                                                            onChange={() => handleToggleStatus(item.sch_id)}
+                                                            style={{cursor:'pointer', transform: 'scale(1.2)'}} // Sedikit diperbesar biar enak diklik
+                                                        />
+                                                    </div>
+                                                </OverlayTrigger>
                                                 <OverlayTrigger overlay={<Tooltip>Lihat History</Tooltip>}>
                                                      <Button variant="light" size="sm" className="border text-primary" onClick={() => handleCheckHistory(item.sch_id)}>
                                                          <History size={14}/>
@@ -495,7 +551,23 @@ export default function PortScan() {
                                                      </Button>
                                                  </OverlayTrigger>
                                                  <OverlayTrigger overlay={<Tooltip>Hapus</Tooltip>}>
-                                                     <Button variant="light" size="sm" className="border text-danger" onClick={() => handleDeleteSchedule(item.sch_id)}>
+                                                     {/* <Button variant="light" size="sm" className="border text-danger" onClick={() => handleDeleteSchedule(item.sch_id)}>
+                                                         <Trash2 size={14}/>
+                                                     </Button> */}
+
+                                                     <Button 
+                                                        variant="light" size="sm" className="text-danger border"
+                                                        onClick={() => Swal.fire({
+                                                            title: "Hapus Jadwal?",
+                                                            text: "Data tidak bisa dikembalikan!",
+                                                            icon: "warning",
+                                                            showCancelButton: true,
+                                                            confirmButtonColor: "#d33",
+                                                            confirmButtonText: "Ya, Hapus!"
+                                                        }).then((res) => {
+                                                            if (res.isConfirmed) handleDeleteSchedule(item.sch_id);
+                                                        })}
+                                                     >
                                                          <Trash2 size={14}/>
                                                      </Button>
                                                  </OverlayTrigger>
@@ -538,8 +610,17 @@ export default function PortScan() {
                               -- Pilih Branch Target --
                           </Dropdown.Toggle>
                           <Dropdown.Menu className="w-100 shadow-sm" style={{maxHeight: '200px', overflowY: 'auto'}}>
-                              <div className="p-2 sticky-top bg-white border-bottom">
+                              <div className="sticky-top bg-white border-bottom">
                                   <Form.Control size="sm" placeholder="Cari Branch..." value={schedBranchSearch} onChange={e => setSchedBranchSearch(e.target.value)} />
+                                  <div 
+                                      className="d-grid mt-2 pb-1 border-bottom"
+                                      onClick={handleAddAllBranches}
+                                      style={{cursor: 'pointer'}}
+                                  >
+                                      <Badge bg="primary" className="p-2 fw-bold text-uppercase d-flex justify-content-center align-items-center gap-2">
+                                          <Plus size={14} strokeWidth={3}/> PILIH SEMUA BRANCH ({branches.length})
+                                      </Badge>
+                                  </div>
                               </div>
                               {getFilteredBranches(schedBranchSearch).map(b => (
                                   <Dropdown.Item key={b.branch_id} onClick={() => handleAddSchedBranch(b)} className="d-flex justify-content-between align-items-center py-2 border-bottom">
@@ -632,7 +713,7 @@ export default function PortScan() {
                                   <small className="d-block text-muted">Target Port</small>
                                   <strong className="text-dark">
                                       {selectedScheduleDetail.sch_portMode === 'all' ? 'All Ports (Full Scan)' : 
-                                       selectedScheduleDetail.sch_portMode === 'group' ? `Group ID: ${selectedScheduleDetail.sch_targetPortGroupId}` : 
+                                       selectedScheduleDetail.sch_portMode === 'group' ? getPortGroupName(selectedScheduleDetail.sch_targetPortGroupId) : 
                                        `Port ${selectedScheduleDetail.sch_targetManualPort}`}
                                   </strong>
                               </Col>
