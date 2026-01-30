@@ -5,7 +5,7 @@ import { toast, ToastContainer } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 
-const API = "http://localhost:7155";
+import API from "./API";
 
 export default function PortScan() {
   const navigate = useNavigate();
@@ -49,13 +49,13 @@ export default function PortScan() {
     fetchSchedules(); 
   }, []);
 
-  const fetchBranches = () => fetch(`${API}/api/Branch/getBranches`).then(res => res.json()).then(data => setBranches(data));
-  const fetchPortGroups = () => fetch(`${API}/api/PortGroup/GetAll`).then(res => res.json()).then(data => setPortGroups(data));
-  const fetchSchedules = () => fetch(`${API}/api/Schedule/GetAll`).then(res => res.json()).then(data => setSchedules(data));
+  const fetchBranches = () => fetch(`${API}/Branch/getBranches`).then(res => res.json()).then(data => setBranches(data));
+  const fetchPortGroups = () => fetch(`${API}/PortGroup/GetAll`).then(res => res.json()).then(data => setPortGroups(data));
+  const fetchSchedules = () => fetch(`${API}/Schedule/GetAll`).then(res => res.json()).then(data => setSchedules(data));
 
   const fetchScheduleDetail = async (id) => {
       try {
-          const res = await fetch(`${API}/api/Schedule/Get/${id}`);
+          const res = await fetch(`${API} /Schedule/Get/${id}`);
           if (!res.ok) throw new Error("Gagal load detail");
           return await res.json();
       } catch (err) {
@@ -68,12 +68,10 @@ export default function PortScan() {
     navigate(`/scanhistory?schId=${scheduleId}`);
   }
 
-  // --- HELPER FILTER ---
   const getFilteredBranches = (search) => {
     return branches.filter(b => (b.branch_name || "").toLowerCase().includes(search.toLowerCase()));
   };
 
-  // --- LOGIC MANUAL SCAN ---
   const handleAddBranchFromDropdown = (branch) => {
     if (selectedBranches.some(b => (b.branch_id || b.id) === (branch.branch_id || branch.id))) {
         toast.info("Branch sudah dipilih.");
@@ -110,7 +108,7 @@ export default function PortScan() {
                 Pg_id: portMode === "group" ? parseInt(portGroupId) : null,
                 Manual_port: portMode === "single" ? parseInt(singlePort) : null,
             };
-            const res = await fetch(`${API}/api/scan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)});
+            const res = await fetch(`${API} /scan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)});
             const data = await res.json();
             data.branchName = branch.branch_name || branch.name;
             data.branchCidr = branch.branch_cidr || branch.cidr;
@@ -126,7 +124,6 @@ export default function PortScan() {
   const currentResult = results.length > 0 ? results[currentIndex] : null;
 
 
-  // --- LOGIC SCHEDULED SCAN ---
   const handleAddClick = () => {
       setIsEditMode(false); setEditingId(null);
       setSchedTitle(""); setSchedTime("00:00"); setSchedFreq("Daily");
@@ -171,7 +168,7 @@ export default function PortScan() {
     };
 
     try {
-        let url = isEditMode ? `${API}/api/Schedule/Update/${editingId}` : `${API}/api/Schedule/Create`;
+        let url = isEditMode ? `${API} /Schedule/Update/${editingId}` : `${API} /Schedule/Create`;
         let method = isEditMode ? "POST" : "POST";
         const res = await fetch(url, { method: method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (!res.ok) throw new Error("Gagal simpan jadwal");
@@ -182,7 +179,7 @@ export default function PortScan() {
   };
 
   const handleDeleteSchedule = async (id) => {
-      await fetch(`${API}/api/Schedule/Delete/${id}`, { method: 'POST' });
+      await fetch(`${API} /Schedule/Delete/${id}`, { method: 'POST' });
       fetchSchedules(); toast.success("Terhapus");
   };
 
@@ -200,17 +197,16 @@ export default function PortScan() {
 
   const handleToggleStatus = async (id) => {
       try {
-          const res = await fetch(`${API}/api/Schedule/ToggleStatus/${id}`, { method: 'POST' });
+          const res = await fetch(`${API}/Schedule/ToggleStatus/${id}`, { method: 'POST' });
           if (!res.ok) throw new Error("Gagal update status");
           
-          fetchSchedules(); // Refresh data biar UI update
+          fetchSchedules();
           toast.success("Status jadwal diupdate!");
       } catch (err) {
           toast.error(err.message);
       }
   };
 
-  // --- FUNGSI PILIH SEMUA BRANCH ---
   const handleAddAllBranches = () => {
       setSchedSelectedBranches(branches);
       setSchedBranchSearch("");
@@ -235,7 +231,6 @@ export default function PortScan() {
 
       <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="mb-4 border-bottom-0">
         
-        {/* === TAB 1: MANUAL SCAN === */}
         <Tab eventKey="manual" title={<span className="fw-bold d-flex align-items-center gap-2"><Play size={16}/> Manual Scan</span>}>
             <Card className="card-enterprise mb-4 border-0 shadow-sm">
                 <Card.Header className="bg-white border-bottom py-3">
@@ -336,7 +331,6 @@ export default function PortScan() {
                 </Card.Body>
             </Card>
 
-            {/* --- RESULT SECTION (KEMBALI KE VERSI VISUAL LAMA) --- */}
             {currentResult && (
                 <div className="animate__animated animate__fadeIn">
                     <Card className="border-0 shadow-sm mb-4 bg-primary text-white">
@@ -350,7 +344,6 @@ export default function PortScan() {
                         </Card.Body>
                     </Card>
 
-                    {/* --- SUMMARY CARDS (DIKEMBALIKAN) --- */}
                     {(() => {
                         const totalOpenPorts = currentResult.results.reduce((acc, curr) => acc + curr.ports.filter(p => p.status).length, 0);
                         const vulnHosts = currentResult.results.filter(r => r.ports.some(p => p.status)).length;
@@ -404,7 +397,6 @@ export default function PortScan() {
                         );
                     })()}
 
-                    {/* --- DETAIL GRID CARDS (DIKEMBALIKAN) --- */}
                     <h5 className="fw-bold text-dark mt-2 mb-3">Detail Result: {currentResult.branchName}</h5>
                     <Row>
                         {currentResult.results
@@ -469,7 +461,6 @@ export default function PortScan() {
             )}
         </Tab>
 
-        {/* === TAB 2: SCHEDULED TASK === */}
         <Tab eventKey="scheduled" title={<span className="fw-bold d-flex align-items-center gap-2"><Clock size={16}/> Scheduled Task</span>}>
              <Card className="border-0 shadow-sm">
                  <Card.Header className="bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
@@ -525,13 +516,13 @@ export default function PortScan() {
                                          <td className="text-end pe-4">
                                              <div className="d-flex justify-content-end gap-2">
                                                 <OverlayTrigger overlay={<Tooltip>{item.sch_isActive ? "Matikan Jadwal" : "Hidupkan Jadwal"}</Tooltip>}>
-                                                    <div className="d-flex align-items-center me-2 border-end pe-3"> {/* Garis pemisah biar rapi */}
+                                                    <div className="d-flex align-items-center me-2 border-end pe-3">
                                                         <Form.Check 
                                                             type="switch"
                                                             id={`switch-${item.sch_id}`}
                                                             checked={item.sch_isActive}
                                                             onChange={() => handleToggleStatus(item.sch_id)}
-                                                            style={{cursor:'pointer', transform: 'scale(1.2)'}} // Sedikit diperbesar biar enak diklik
+                                                            style={{cursor:'pointer', transform: 'scale(1.2)'}}
                                                         />
                                                     </div>
                                                 </OverlayTrigger>
@@ -583,7 +574,6 @@ export default function PortScan() {
         </Tab>
       </Tabs>
 
-      {/* --- MODAL 1: ADD / EDIT SCHEDULE --- */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered backdrop="static">
           <Modal.Header closeButton>
               <Modal.Title className="fw-bold fs-5">
@@ -686,7 +676,6 @@ export default function PortScan() {
           </Modal.Footer>
       </Modal>
 
-      {/* --- MODAL 2: DETAIL SCHEDULE --- */}
       <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} centered>
           <Modal.Header closeButton>
               <Modal.Title className="fw-bold fs-5 d-flex align-items-center gap-2">

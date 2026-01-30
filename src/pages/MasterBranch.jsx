@@ -5,7 +5,7 @@ import { toast, ToastContainer } from "react-toastify";
 import Swal from "sweetalert2";
 import "react-toastify/dist/ReactToastify.css";
 
-const API = "http://localhost:7155/api";
+import API from "./API";
 
 export default function MasterBranch() {
   const [branches, setBranches] = useState([]);

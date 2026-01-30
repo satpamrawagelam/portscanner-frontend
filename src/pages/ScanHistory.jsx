@@ -4,7 +4,7 @@ import { FileText, Search, Calendar, Server, Globe, ShieldAlert, CheckCircle, Ch
 import { toast, ToastContainer } from "react-toastify";
 import { useSearchParams } from "react-router-dom"; 
 
-const API = "http://localhost:7155/api";
+import API from "./API";
 
 export default function ScanHistory() {
     const [rawData, setRawData] = useState([]); 
@@ -35,7 +35,6 @@ export default function ScanHistory() {
         if (filterSchId) {
             setActiveTab("scheduled");
             
-            // setLoading(true);
             fetch(`${API}/Schedule/Get/${filterSchId}`)
                 .then(res => res.json())
                 .then(data => {
@@ -48,14 +47,14 @@ export default function ScanHistory() {
                     }
                 })
                 .catch(err => console.error("Gagal load filter info", err))
-                // .finally(() => setLoading(false));
+                .finally(() => setLoading(false));
         }
     }, [filterSchId]);
 
     useEffect(() => {
         setCurrentPage(1);
         if (!filterSchId) {
-            //  setSearchTerm(""); // Aktifkan jika ingin search hilang saat ganti tab
+            //  setSearchTerm("");
         }
     }, [activeTab, filterSchId]);
 
@@ -124,13 +123,11 @@ export default function ScanHistory() {
         toast.success(`Berhasil export ${filteredData.length} data ke CSV`);
     };
 
-    // --- PAGINATION LOGIC ---
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
-    // --- RENDER PAGINATION ---
     const renderPagination = () => {
         if (totalPages <= 1) return null;
         let pages = [];
@@ -242,7 +239,7 @@ export default function ScanHistory() {
                                     </td>
                                     <td>
                                         <div className="d-flex align-items-start gap-2">
-                                            {item.openPorts === '-' || item.openPorts === '0' ? ( // Handle jika 0 atau -
+                                            {item.openPorts === '-' || item.openPorts === '0' ? (
                                                 <>
                                                     <CheckCircle size={16} className="text-success mt-1 flex-shrink-0"/>
                                                     <span className="text-success fw-bold font-monospace">All Closed</span>
@@ -276,7 +273,6 @@ export default function ScanHistory() {
     return (
         <div className="animate__animated animate__fadeIn">
             <ToastContainer position="top-right" autoClose={3000} />
-            {/* HEADER */}
             <div className="d-flex align-items-center gap-3 mb-4">
                 <div className="bg-primary bg-opacity-10 p-2 rounded">
                     <FileText size={24} className="text-primary"/>
@@ -287,7 +283,6 @@ export default function ScanHistory() {
                 </div>
             </div>
 
-            {/* TABS NAVIGATION */}
             <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="mb-0 border-bottom-0" fill>
                 <Tab eventKey="manual" title={<span className="fw-bold d-flex align-items-center justify-content-center gap-2 py-2"><Play size={16}/> Riwayat Manual Scan</span>}>
                     {historyTableContent}

@@ -6,10 +6,11 @@ import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell 
 } from 'recharts';
 
-const API = "http://localhost:7155/api";
+import API from "./API";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  
   
   const [overview, setOverview] = useState({ total: 0, open: 0, closed: 0 });
   const [branches, setBranches] = useState([]);
@@ -24,16 +25,12 @@ export default function Dashboard() {
   const [branchPage, setBranchPage] = useState(1);
   const itemsPerPage = 10;
 
-  const [branchSearch, setBranchSearch] = useState(""); // 1. State untuk search
+  const [branchSearch, setBranchSearch] = useState("");
 
 
   const filteredBranches = branches.filter(b => 
       b.branch_name.toLowerCase().includes(branchSearch.toLowerCase())
   );
-//   const totalBranchPages = Math.ceil(filteredBranches.length / itemsPerPage);
-//   const currentBranchData = filteredBranches.slice((branchPage - 1) * itemsPerPage, branchPage * itemsPerPage);
-
-  // --- FETCH DATA ---
   const fetchData = () => {
     const trendUrl = `${API}/Dashboard/GetGlobalTrend?month=${selectedMonth}&year=${selectedYear}`;
 
@@ -48,7 +45,6 @@ export default function Dashboard() {
         setBranches(branchData);
         setTrend(trendData);
         
-        // SORTING DATA RISK
         const sortedRisks = riskData.sort((a, b) => {
             if (b.highRisk !== a.highRisk) return b.highRisk - a.highRisk;
             if (b.mediumRisk !== a.mediumRisk) return b.mediumRisk - a.mediumRisk;
@@ -64,7 +60,6 @@ export default function Dashboard() {
     fetchData();
   }, [selectedMonth, selectedYear]); 
 
-  // --- LOGIC PAGINATION CHART (STANDARD 1 2 3 ... N) ---
   const totalRiskPages = Math.ceil(risks.length / itemsPerPage);
   const currentRiskData = risks.slice((riskPage - 1) * itemsPerPage, riskPage * itemsPerPage);
 
@@ -305,7 +300,6 @@ export default function Dashboard() {
   );
 }
 
-// --- SUB COMPONENT ---
 function StatusCard({ title, value, subtitle, color, icon }) {
   const bgSoft = `bg-${color} bg-opacity-10`; 
   const textColor = `text-${color}`;

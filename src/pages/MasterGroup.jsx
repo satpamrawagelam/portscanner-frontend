@@ -12,7 +12,7 @@ import { Database, Plus, Save, X, Edit2, Trash2, Search, FolderOpen } from "luci
 import { toast, ToastContainer } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 
-const API = "http://localhost:7155/api"; 
+import API from "./API";
 
 export default function MasterGroup() {
   const navigate = useNavigate();

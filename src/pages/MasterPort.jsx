@@ -5,7 +5,7 @@ import { ArrowLeft, Save, Trash2, Edit2, X, Plus, Server, Tag, AlertTriangle, Se
 import { toast, ToastContainer } from "react-toastify";
 import Swal from "sweetalert2";
 
-const API = "http://localhost:7155/api"; 
+import API from "./API";
 
 export default function MasterPort() {
   const { id } = useParams(); 
@@ -74,14 +74,13 @@ export default function MasterPort() {
             Pm_portGroup: Number(groupId),
             Pm_portNumber: portNum,
             Pm_desc: desc || "",
-            Pm_severity: severity || "Medium" // Default Medium jika null
+            Pm_severity: severity || "Medium"
         })
     });
     if (!res.ok) throw new Error("API Error");
     return res;
   };
 
-  // --- MODIFIED FILE UPLOAD LOGIC ---
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -105,19 +104,10 @@ export default function MasterPort() {
             const parts = line.split(',');
 
             if (parts.length >= 1) {
-                // 1. Ambil Port
                 const pPort = Number(parts[0].trim());
-                
-                // 2. Ambil Deskripsi (jika ada)
                 const pDesc = parts[1] ? parts[1].trim() : "";
-                
-                // 3. Ambil Severity (LOGIC BARU)
-                // Jika kolom ke-3 ada dan tidak kosong, pakai itu. Jika tidak, otomatis "Medium".
                 let inputSeverity = (parts[2] && parts[2].trim() !== "") ? parts[2].trim() : "Medium";
-                
                 const validSeverities = ["Low", "Medium", "High"];
-                
-                // Cari kecocokan (case insensitive), kalau typo/salah ketik balikin ke Medium
                 let pSeverity = validSeverities.find(s => s.toLowerCase() === inputSeverity.toLowerCase()) || "Medium";
 
                 if (!isNaN(pPort) && pPort > 0) {
@@ -131,10 +121,10 @@ export default function MasterPort() {
                             failCount++;
                         }
                     } else {
-                        failCount++; // Duplicate
+                        failCount++;
                     }
                 } else {
-                    failCount++; // Invalid Port
+                    failCount++;
                 }
             }
         }

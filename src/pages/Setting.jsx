@@ -3,7 +3,7 @@ import { Card, Form, Button, Row, Col, Spinner, InputGroup, Alert } from "react-
 import { Save, Settings, Clock, Zap, Activity, Info, Gauge, Repeat } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 
-const API = "http://localhost:7155/api";
+import API from "./API";
 
 export default function Setting() {
   const [config, setConfig] = useState([]);

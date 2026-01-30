@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, Row, Col, Badge, Button, Spinner } from "react-bootstrap";
-import { ArrowLeft, Server, ShieldAlert, ShieldCheck, Globe, Activity, Lock } from "lucide-react"; // Tambah icon Lock
+import { ArrowLeft, Server, ShieldAlert, ShieldCheck, Globe, Activity, Lock } from "lucide-react";
 
-const API = "http://localhost:7155/api";
+import API from "./API";
 
 export default function BranchDetail() {
   const navigate = useNavigate();
