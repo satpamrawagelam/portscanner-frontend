@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Card, Form, Button, Row, Col, ProgressBar, Badge, Dropdown, Tabs, Tab, Table, Modal, OverlayTrigger, Tooltip } from "react-bootstrap";
-import { Play, Search, Loader2, Globe, X, ChevronLeft, ChevronRight, CheckCircle, Clock, Calendar, Trash2, Plus, Eye, Edit, Layers, AlertCircle, Server, Radar, XCircle, History } from "lucide-react"; 
+import { Play, Search, Loader2, Globe, X, ChevronLeft, ChevronRight, CheckCircle, Clock, Calendar, Trash2, Plus, Eye, Edit, Layers, AlertCircle, Server, Radar, XCircle, History, Wifi, WifiOff, ShieldAlert, ShieldCheck } from "lucide-react"; 
 import { toast, ToastContainer } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
@@ -55,7 +55,7 @@ export default function PortScan() {
 
   const fetchScheduleDetail = async (id) => {
       try {
-          const res = await fetch(`${API} /Schedule/Get/${id}`);
+          const res = await fetch(`${API}/Schedule/Get/${id}`);
           if (!res.ok) throw new Error("Gagal load detail");
           return await res.json();
       } catch (err) {
@@ -108,7 +108,7 @@ export default function PortScan() {
                 Pg_id: portMode === "group" ? parseInt(portGroupId) : null,
                 Manual_port: portMode === "single" ? parseInt(singlePort) : null,
             };
-            const res = await fetch(`${API} /scan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)});
+            const res = await fetch(`${API}/scan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)});
             const data = await res.json();
             data.branchName = branch.branch_name || branch.name;
             data.branchCidr = branch.branch_cidr || branch.cidr;
@@ -168,7 +168,7 @@ export default function PortScan() {
     };
 
     try {
-        let url = isEditMode ? `${API} /Schedule/Update/${editingId}` : `${API} /Schedule/Create`;
+        let url = isEditMode ? `${API}/Schedule/Update/${editingId}` : `${API}/Schedule/Create`;
         let method = isEditMode ? "POST" : "POST";
         const res = await fetch(url, { method: method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (!res.ok) throw new Error("Gagal simpan jadwal");
@@ -179,7 +179,7 @@ export default function PortScan() {
   };
 
   const handleDeleteSchedule = async (id) => {
-      await fetch(`${API} /Schedule/Delete/${id}`, { method: 'POST' });
+      await fetch(`${API}/Schedule/Delete/${id}`, { method: 'POST' });
       fetchSchedules(); toast.success("Terhapus");
   };
 
@@ -218,9 +218,19 @@ export default function PortScan() {
       toast.info(`Berhasil memilih ${branches.length} branch!`);
   };
 
+  const getSeverityColor = (severity) => {
+      const sev = severity ? severity.toLowerCase() : 'low';
+      switch(sev) {
+          case 'high': return 'danger';
+          case 'medium': return 'warning';
+          case 'low': return 'info';
+          default: return 'secondary';
+      }
+  };
+
   return (
     <div>
-      <ToastContainer position="top-right" autoClose={3000} />
+      <ToastContainer position="bottom-right" autoClose={3000} />
       
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -309,7 +319,7 @@ export default function PortScan() {
                                     <Form.Label className="text-muted small fw-bold text-uppercase">Select Group</Form.Label>
                                     <Form.Select value={portGroupId} onChange={(e) => setPortGroupId(e.target.value)} className="form-control-lg fs-6">
                                         <option value="">-- Pilih Group Port --</option>
-                                        <option value="0" className="fw-bold text-danger">★ SCAN ALL PORTS</option>
+                                        <option value="0" className="fw-bold text">SCAN ALL PORTS</option>
                                         {portGroups.map((pg) => <option key={pg.pg_id} value={pg.pg_id}>{pg.pg_name}</option>)}
                                     </Form.Select>
                                 </>
@@ -403,55 +413,98 @@ export default function PortScan() {
                             .sort((a, b) => {
                                 const openA = a.ports.filter(p => p.status).length;
                                 const openB = b.ports.filter(p => p.status).length;
-                                return openB - openA; 
+                                if (openA !== openB) return openB - openA;
+                                return (b.isHostAlive === true) - (a.isHostAlive === true);
                             })
                             .map((ipResult, index) => {
                                 const openCount = ipResult.ports.filter(p => p.status).length;
-                                const hasOpenPort = openCount > 0;
+                                const isVulnerable = openCount > 0;
+                                const isAlive = ipResult.isHostAlive;
+
                                 return (
-                                    <Col xs={12} key={index} className="mb-3">
-                                        <Card className={`border-0 shadow-sm ${hasOpenPort ? 'border-start border-danger border-4' : 'border-start border-success border-4'}`}>
-                                            <Card.Header className="bg-white py-3 d-flex justify-content-between align-items-center">
+                                    <Col xs={12} lg={6} key={index} className="mb-3">
+                                        <Card className={`card-enterprise border-0 shadow-sm h-100 ${isVulnerable ? 'border-start border-danger border-4' : 'border-start border-success border-4'}`}>
+                                            <Card.Header className="bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                                                 <div className="d-flex align-items-center gap-2">
                                                     <Globe size={18} className="text-secondary"/>
-                                                    <span className="fw-bold text-dark fs-5">{ipResult.ip}</span>
+                                                    <span className="fw-bold fs-5 text-dark">{ipResult.ip}</span>
                                                 </div>
-                                                <Badge bg={hasOpenPort ? "danger" : "success"}>
-                                                    {hasOpenPort ? `${openCount} Open Ports` : "All Secure"}
-                                                </Badge>
+                                                
+                                                <div className="d-flex gap-2">
+                                                    {/* BADGE 1: STATUS HOST */}
+                                                    {isAlive ? (
+                                                        <Badge bg="primary" className="d-flex align-items-center gap-1 py-2 px-3">
+                                                            <Wifi size={14}/> Host Up
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge bg="secondary" className="d-flex align-items-center gap-1 py-2 px-3 opacity-75">
+                                                            <WifiOff size={14}/> Host Down
+                                                        </Badge>
+                                                    )}
+
+                                                    {/* BADGE 2: STATUS PORT */}
+                                                    {isVulnerable ? (
+                                                        <Badge bg="danger" className="d-flex align-items-center gap-1 py-2 px-3">
+                                                            <ShieldAlert size={14}/> {openCount} Open
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge bg="success" className="d-flex align-items-center gap-1 py-2 px-3">
+                                                            <ShieldCheck size={14}/> Secure
+                                                        </Badge>
+                                                    )}
+                                                </div>
                                             </Card.Header>
+                                            
                                             <Card.Body className="bg-light bg-opacity-25">
-                                                <Row className="g-2">
-                                                    {ipResult.ports.map((p) => {
-                                                        let severityColor = "secondary";
-                                                        let severityText = "text-muted";
-                                                        let borderColor = "border-light";
+                                                {ipResult.ports && ipResult.ports.length > 0 ? (
+                                                    <Row className="g-2">
+                                                        {ipResult.ports.map((p) => {
+                                                            const colorVariant = p.status ? getSeverityColor(p.severity) : "light";
+                                                            const borderColor = p.status ? `border-${colorVariant}` : "border-secondary border-opacity-25";
+                                                            const textColor = p.status ? `text-${colorVariant}` : "text-muted opacity-75";
 
-                                                        if (p.status) {
-                                                            const sev = p.severity ? p.severity.toLowerCase() : "low";
-                                                            if (sev === "high") { severityColor = "danger"; severityText = "text-danger"; borderColor = "border-danger"; } 
-                                                            else if (sev === "medium") { severityColor = "warning"; severityText = "text-warning"; borderColor = "border-warning"; } 
-                                                            else { severityColor = "info"; severityText = "text-info"; borderColor = "border-info"; }
-                                                        }
-
-                                                        return (
-                                                            <Col xs={6} sm={4} md={3} lg={2} key={p.port}>
-                                                                <div className={`p-2 rounded border text-center position-relative transition-all ${p.status ? `bg-white ${borderColor} border-2 shadow-sm` : "bg-white border-light text-muted opacity-75"}`}>
-                                                                    <div className={`fw-bold fs-5 mb-0 ${p.status ? severityText : ""}`}>{p.port}</div>
-                                                                    <div className={`small fw-bold text-uppercase ${p.status ? severityText : "text-muted"}`} style={{fontSize: '0.7rem'}}>
-                                                                        {p.status ? "OPEN" : "CLOSED"}
-                                                                    </div>
-                                                                    {p.status && (
-                                                                        <div className={`position-absolute top-0 start-100 translate-middle badge rounded-pill bg-${severityColor}`} style={{fontSize: '0.5rem', zIndex: 10}}>
-                                                                            {p.severity ? p.severity[0].toUpperCase() : "L"}
+                                                            return (
+                                                                <Col xs={6} sm={4} md={3} key={p.port}>
+                                                                    <div className={`p-2 rounded border text-center position-relative transition-all ${p.status ? `bg-white ${borderColor} border-2 shadow-sm` : "bg-white border-light text-muted opacity-75"}`}>
+                                                                        <div className={`fw-bold fs-5 mb-0 ${textColor}`}>{p.port}</div>
+                                                                        <div className={`small fw-bold text-uppercase text-truncate ${textColor}`} style={{fontSize: '0.7rem'}}>
+                                                                            {p.status ? "OPEN" : "CLOSED"}
                                                                         </div>
-                                                                    )}
-                                                                </div>
-                                                            </Col>
-                                                        );
-                                                    })}
-                                                </Row>
+                                                                        {p.status && (
+                                                                            <div className={`position-absolute top-0 start-100 translate-middle badge rounded-pill bg-${colorVariant}`} style={{fontSize: '0.5rem', zIndex: 10}}>
+                                                                                {p.severity ? p.severity[0].toUpperCase() : "L"}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </Col>
+                                                            );
+                                                        })}
+                                                    </Row>
+                                                ) : (
+                                                    <div className="text-center py-4 text-muted opacity-75 d-flex flex-column align-items-center justify-content-center">
+                                                        <div className="bg-secondary bg-opacity-10 p-3 rounded-circle mb-2">
+                                                            <Lock size={24} className="text-secondary"/>
+                                                        </div>
+                                                        <small className="fw-bold">No Ports Scanned.</small>
+                                                    </div>
+                                                )}
                                             </Card.Body>
+
+                                            {isVulnerable && (
+                                                <Card.Footer className="bg-white border-top-0 py-2">
+                                                    <div className="d-flex gap-3 justify-content-end">
+                                                        <small className="d-flex align-items-center gap-1 text-muted" style={{fontSize: '10px'}}>
+                                                            <span className="d-inline-block rounded-circle bg-danger" style={{width: 8, height: 8}}></span> High
+                                                        </small>
+                                                        <small className="d-flex align-items-center gap-1 text-muted" style={{fontSize: '10px'}}>
+                                                            <span className="d-inline-block rounded-circle bg-warning" style={{width: 8, height: 8}}></span> Medium
+                                                        </small>
+                                                        <small className="d-flex align-items-center gap-1 text-muted" style={{fontSize: '10px'}}>
+                                                            <span className="d-inline-block rounded-circle bg-info" style={{width: 8, height: 8}}></span> Low
+                                                        </small>
+                                                    </div>
+                                                </Card.Footer>
+                                            )}
                                         </Card>
                                     </Col>
                                 );
@@ -646,7 +699,7 @@ export default function PortScan() {
                           <Form.Select value={schedPortMode} onChange={e => setSchedPortMode(e.target.value)}>
                               <option value="group">Use Port Group</option>
                               <option value="single">Single Port</option>
-                              <option value="all" className="fw-bold text-danger">★ SCAN ALL PORTS</option>
+                              <option value="all" className="fw-bold text">SCAN ALL PORTS</option>
                           </Form.Select>
                       </Col>
                       <Col md={4}>
@@ -654,7 +707,7 @@ export default function PortScan() {
                           {schedPortMode === 'group' && (
                               <Form.Select value={schedPortGroupId} onChange={e => setSchedPortGroupId(e.target.value)}>
                                   <option value="">- Pilih Group -</option>
-                                  <option value="0" className="fw-bold text-danger">★ SCAN ALL PORTS</option>
+                                  <option value="0" className="fw-bold text">SCAN ALL PORTS</option>
                                   {portGroups.map(pg => <option key={pg.pg_id} value={pg.pg_id}>{pg.pg_name}</option>)}
                               </Form.Select>
                           )}

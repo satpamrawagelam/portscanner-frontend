@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, Row, Col, Badge, Button, Spinner } from "react-bootstrap";
-import { ArrowLeft, Server, ShieldAlert, ShieldCheck, Globe, Activity, Lock } from "lucide-react";
+import { ArrowLeft, Server, ShieldAlert, ShieldCheck, Globe, Activity, Lock, Wifi, WifiOff } from "lucide-react";
 
 import API from "./API";
 
@@ -87,6 +87,8 @@ export default function BranchDetail() {
             const validPorts = ipResult.ports.filter(p => p.port !== 0 && p.port !== null);
             const openCount = validPorts.filter(p => p.status).length;
             const isVulnerable = openCount > 0;
+            const isAlive = ipResult.hostStatus;
+            console.log(ipResult.hostStatus);
 
             return (
                 <div key={ipResult.ip} className="col-lg-6 col-xl-6">
@@ -96,14 +98,25 @@ export default function BranchDetail() {
                                 <Globe size={18} className="text-secondary"/>
                                 <span className="fw-bold fs-5 text-dark">{ipResult.ip}</span>
                             </div>
-                            <div>
+
+                            <div className="d-flex align-items-center gap-2">
+                                {isAlive ? (
+                                    <Badge bg="primary" className="d-flex align-items-center gap-1 py-2 px-3">
+                                        <Wifi size={14}/> Host Up
+                                    </Badge>
+                                ) : (
+                                    <Badge bg="secondary" className="d-flex align-items-center gap-1 py-2 px-3 opacity-75">
+                                        <WifiOff size={14}/> Host Down
+                                    </Badge>
+                                )}
+
                                 {isVulnerable ? (
                                     <Badge bg="danger" className="d-flex align-items-center gap-1 py-2 px-3">
-                                        <ShieldAlert size={14}/> {openCount} Open Ports
+                                        <ShieldAlert size={14}/> {openCount} Open
                                     </Badge>
                                 ) : (
                                     <Badge bg="success" className="d-flex align-items-center gap-1 py-2 px-3">
-                                        <ShieldCheck size={14}/> No Ports Open
+                                        <ShieldCheck size={14}/> Secure
                                     </Badge>
                                 )}
                             </div>

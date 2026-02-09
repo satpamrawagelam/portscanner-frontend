@@ -25,7 +25,7 @@ export default function Sidebar() {
     {
       title: "MASTER DATA",
       items: [
-        { name: "Master Branch", path: "/masterbranch", icon: <ShieldCheck size={20} /> }, // Sesuaikan path jika beda
+        { name: "Master Branch", path: "/masterbranch", icon: <ShieldCheck size={20} /> }, 
         { name: "Master Group & Port", path: "/mastergroup", icon: <Server size={20} /> },
       ]
     },

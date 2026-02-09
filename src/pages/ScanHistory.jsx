@@ -272,7 +272,7 @@ export default function ScanHistory() {
 
     return (
         <div className="animate__animated animate__fadeIn">
-            <ToastContainer position="top-right" autoClose={3000} />
+            <ToastContainer position="bottom-right" autoClose={3000} />
             <div className="d-flex align-items-center gap-3 mb-4">
                 <div className="bg-primary bg-opacity-10 p-2 rounded">
                     <FileText size={24} className="text-primary"/>
