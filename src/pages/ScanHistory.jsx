@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Card, Table, Badge, Form, InputGroup, Spinner, Button, Tabs, Tab } from "react-bootstrap";
-import { FileText, Search, Calendar, Server, Globe, ShieldAlert, CheckCircle, ChevronLeft, ChevronRight, Clock, Play, Download } from "lucide-react";
+import { FileText, Search, Calendar, Server, Globe, ShieldAlert, CheckCircle, ChevronLeft, ChevronRight, Clock, Play, Download, Wifi, WifiOff } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import { useSearchParams } from "react-router-dom"; 
 
@@ -228,13 +228,24 @@ export default function ScanHistory() {
                                         </Badge>
                                     </td>
                                     <td>
-                                        <div className="d-flex align-items-center gap-2 mb-1">
-                                            <Server size={14} className="text-secondary"/>
-                                            <span className="fw-bold text-dark">{item.branchName}</span>
-                                        </div>
-                                        <div className="d-flex align-items-center gap-2">
-                                            <Globe size={14} className="text-muted"/>
-                                            <span className="text-muted font-monospace">{item.ipAddress}</span>
+                                        <div className="d-flex flex-column">
+                                            <div className="d-flex align-items-center gap-2 mb-1">
+                                                <Server size={14} className="text-secondary"/>
+                                                <span className="fw-bold text-dark">{item.branchName}</span>
+                                            </div>
+                                            <div className="d-flex align-items-center gap-2">
+                                                <Globe size={14} className="text-secondary"/>
+                                                <span className="font-monospace text-muted small me-2">{item.ipAddress}</span>
+                                                {item.hostStatus === true ? (
+                                                    <Badge bg="success" className="d-flex align-items-center gap-1" style={{fontSize: '9px', padding: '4px 6px'}}>
+                                                        <Wifi size={10} /> UP
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge bg="secondary" className="d-flex align-items-center gap-1 opacity-75" style={{fontSize: '9px', padding: '4px 6px'}}>
+                                                        <WifiOff size={10} /> DOWN
+                                                    </Badge>
+                                                )}
+                                            </div>
                                         </div>
                                     </td>
                                     <td>
