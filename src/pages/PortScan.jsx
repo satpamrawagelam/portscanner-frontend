@@ -18,7 +18,10 @@ export default function PortScan() {
   const [selectedBranches, setSelectedBranches] = useState([]); 
   const [portMode, setPortMode] = useState("group");
   const [portGroupId, setPortGroupId] = useState("");
-  const [singlePort, setSinglePort] = useState("");
+//   const [singlePort, setSinglePort] = useState("");
+  const [manualPortsList, setManualPortsList] = useState([]);
+  const [singlePortInput, setSinglePortInput] = useState("");
+
   const [branchSearch, setBranchSearch] = useState(""); 
   
   const [schedules, setSchedules] = useState([]);
@@ -35,7 +38,9 @@ export default function PortScan() {
   const [schedBranchSearch, setSchedBranchSearch] = useState("");
   const [schedPortMode, setSchedPortMode] = useState("group");
   const [schedPortGroupId, setSchedPortGroupId] = useState("");
-  const [schedManualPort, setSchedManualPort] = useState("");
+//   const [schedManualPort, setSchedManualPort] = useState("");
+  const [schedManualPortsList, setSchedManualPortsList] = useState([]);
+  const [schedSinglePortInput, setSchedSinglePortInput] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -68,8 +73,17 @@ export default function PortScan() {
     navigate(`/scanhistory?schId=${scheduleId}`);
   }
 
-  const getFilteredBranches = (search) => {
-    return branches.filter(b => (b.branch_name || "").toLowerCase().includes(search.toLowerCase()));
+  const getFilteredBranches = (search, currentSelectedList = []) => {
+    return branches.filter(b => {
+      const isMatchSearch = (b.branch_name || "").toLowerCase().includes(search.toLowerCase()) || 
+                            (b.branch_cidr || "").toLowerCase().includes(search.toLowerCase());
+      
+      const isAlreadySelected = currentSelectedList.some(selected => 
+                            (selected.branch_id || selected.id) === (b.branch_id || b.id));
+                            
+      // Tampilkan HANYA JIKA cocok dengan pencarian DAN BELUM dipilih
+      return isMatchSearch && !isAlreadySelected;
+    });
   };
 
   const handleAddBranchFromDropdown = (branch) => {
@@ -93,8 +107,8 @@ export default function PortScan() {
     if (portMode === "group" && !portGroupId && portGroupId !== 0 && portGroupId !== "0") {
         return toast.warn("Pilih Group Port atau opsi All Ports!");
     }
-    if (portMode === "single" && !singlePort) {
-        return toast.warn("Port Manual wajib diisi!");
+    if (portMode === "single" && manualPortsList.length === 0) {
+        return toast.warn("Port Manual wajib diisi minimal satu!");
     }
 
     setLoading(true); setResults([]); startFakeProgress();
@@ -106,7 +120,7 @@ export default function PortScan() {
                 Title: scanTitle,
                 Branch_id: Number(branch.branch_id || branch.id),
                 Pg_id: portMode === "group" ? parseInt(portGroupId) : null,
-                Manual_port: portMode === "single" ? parseInt(singlePort) : null,
+                Manual_ports: portMode === "single" ? manualPortsList : null,
             };
             const res = await fetch(`${API}/scan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)});
             const data = await res.json();
@@ -128,7 +142,9 @@ export default function PortScan() {
       setIsEditMode(false); setEditingId(null);
       setSchedTitle(""); setSchedTime("00:00"); setSchedFreq("Daily");
       setSchedSelectedBranches([]); setSchedPortMode("group"); 
-      setSchedPortGroupId(""); setSchedManualPort("");
+      setSchedPortGroupId(""); 
+      setSchedManualPortsList([]);
+      setSchedSinglePortInput("");
       setShowModal(true);
   };
 
@@ -141,7 +157,7 @@ export default function PortScan() {
           setSchedFreq(detail.sch_frequency);
           setSchedPortMode(detail.sch_portMode);
           setSchedPortGroupId(detail.sch_targetPortGroupId || "");
-          setSchedManualPort(detail.sch_targetManualPort || "");
+          setSchedManualPortsList(detail.sch_targetManualPorts || []);
           const mappedBranches = detail.targets.map(t => ({
               branch_id: t.branchId, branch_name: t.branchName, branch_cidr: t.branchCidr
           }));
@@ -163,7 +179,7 @@ export default function PortScan() {
         Sch_title: schedTitle, Sch_frequency: schedFreq, Sch_time: schedTime + ":00", 
         Sch_portMode: schedPortMode,
         Sch_targetPortGroupId: schedPortMode === 'group' ? parseInt(schedPortGroupId) : null,
-        Sch_targetManualPort: schedPortMode === 'single' ? parseInt(schedManualPort) : null,
+        Sch_targetManualPorts: schedPortMode === 'single' ? schedManualPortsList : null,
         TargetBranchIds: schedSelectedBranches.map(b => b.branch_id) 
     };
 
@@ -187,6 +203,7 @@ export default function PortScan() {
       if(!schedSelectedBranches.some(x => x.branch_id === b.branch_id)) setSchedSelectedBranches([...schedSelectedBranches, b]);
       setSchedBranchSearch("");
   };
+
 
   const getPortGroupName = (groupId) => {
       if (groupId === 0) return "All Ports (Full Scan)";
@@ -216,6 +233,50 @@ export default function PortScan() {
       setSelectedBranches(branches);
       setSchedBranchSearch("");
       toast.info(`Berhasil memilih ${branches.length} branch!`);
+  };
+
+  const handleKeyDownPort = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const portVal = parseInt(singlePortInput);
+      
+      if (portVal > 0 && portVal <= 65535) {
+        if (!manualPortsList.includes(portVal)) {
+          setManualPortsList([...manualPortsList, portVal]);
+        } else {
+          toast.info("Port sudah ditambahkan.");
+        }
+        setSinglePortInput(""); 
+      } else {
+        toast.warning("Masukkan port yang valid (1 - 65535).");
+      }
+    }
+  };
+
+  const handleRemoveManualPort = (portToRemove) => {
+    setManualPortsList(manualPortsList.filter(p => p !== portToRemove));
+  };
+
+  const handleKeyDownSchedPort = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const portVal = parseInt(schedSinglePortInput);
+      
+      if (!isNaN(portVal) && portVal > 0 && portVal <= 65535) {
+        if (!schedManualPortsList.includes(portVal)) {
+          setSchedManualPortsList([...schedManualPortsList, portVal]);
+        } else {
+          toast.info("Port sudah ditambahkan.");
+        }
+        setSchedSinglePortInput(""); 
+      } else {
+        toast.warning("Masukkan port yang valid (1 - 65535).");
+      }
+    }
+  };
+
+  const handleRemoveSchedManualPort = (portToRemove) => {
+    setSchedManualPortsList(schedManualPortsList.filter(p => p !== portToRemove));
   };
 
   const getSeverityColor = (severity) => {
@@ -276,12 +337,17 @@ export default function PortScan() {
                                         </div>
                                     </div>
                                     <div style={{maxHeight: '200px', overflowY: 'auto'}}>
-                                        {getFilteredBranches(branchSearch).map((b) => (
+                                        {getFilteredBranches(branchSearch, selectedBranches).map((b) => (
                                             <Dropdown.Item key={b.branch_id || b.id} onClick={() => handleAddBranchFromDropdown(b)} className="d-flex justify-content-between align-items-center py-2 border-bottom">
                                                 <span className="fw-bold text-dark small">{b.branch_name || b.name}</span>
                                                 <Badge bg="light" text="primary" className="border fw-normal">{b.branch_cidr || b.cidr}</Badge>
                                             </Dropdown.Item>
                                         ))}
+                                        {getFilteredBranches(branchSearch, selectedBranches).length === 0 && (
+                                            <div className="p-3 text-center text-muted small fst-italic">
+                                                Semua branch telah dipilih.
+                                            </div>
+                                        )}
                                     </div>
                                 </Dropdown.Menu>
                             </Dropdown>
@@ -289,7 +355,14 @@ export default function PortScan() {
 
                         <Col xs={12}>
                             <div className="p-3 bg-light rounded border border-dashed">
-                                <Form.Label className="text-muted small fw-bold text-uppercase d-block mb-2">Target List ({selectedBranches.length})</Form.Label>
+                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                    <Form.Label className="text-muted small fw-bold text-uppercase mb-0">Target List ({selectedBranches.length})</Form.Label>
+                                    {selectedBranches.length > 0 && (
+                                        <Badge bg="danger" className="text-white fw-normal" style={{cursor: 'pointer'}} onClick={() => setSelectedBranches([])}>
+                                            <Trash2 size={12} className="me-1"/> Hapus Semua
+                                        </Badge>
+                                    )}
+                                </div>
                                 {selectedBranches.length === 0 ? <span className="text-muted small fst-italic">Belum ada branch dipilih.</span> : (
                                     <div className="d-flex flex-wrap gap-2">
                                         {selectedBranches.map((b) => (
@@ -326,7 +399,45 @@ export default function PortScan() {
                             ) : (
                                 <>
                                     <Form.Label className="text-muted small fw-bold text-uppercase">Manual Port</Form.Label>
-                                    <Form.Control type="number" placeholder="8080" value={singlePort} onChange={(e) => setSinglePort(e.target.value)} className="form-control-lg fs-6" />
+                                    <Form.Control 
+                                        type="number" 
+                                        placeholder="Ketik port (cth: 80) lalu tekan Enter..." 
+                                        value={singlePortInput} 
+                                        onChange={(e) => setSinglePortInput(e.target.value)} 
+                                        onKeyDown={handleKeyDownPort}
+                                        className="form-control-lg fs-6 mb-3" 
+                                    />
+                                    
+                                    <div className="p-3 bg-light rounded border border-dashed">
+                                        <div className="d-flex justify-content-between align-items-center mb-2">
+                                            <Form.Label className="text-muted small fw-bold text-uppercase mb-0">Port List ({manualPortsList.length})</Form.Label>
+                                            {manualPortsList.length > 0 && (
+                                                <Badge bg="danger" className="text-white fw-normal" style={{cursor: 'pointer'}} onClick={() => setManualPortsList([])}>
+                                                    <Trash2 size={12} className="me-1"/> Hapus Semua
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        {manualPortsList.length === 0 ? (
+                                            <span className="text-muted small fst-italic">Belum ada port ditambahkan.</span>
+                                        ) : (
+                                            <div className="d-flex flex-wrap gap-2">
+                                                {manualPortsList.map((p) => (
+                                                    <Badge key={p} bg="white" className="text-dark border shadow-sm px-3 py-2 d-flex align-items-center gap-2">
+                                                        <Server size={14} className="text-primary"/>
+                                                        <span className="fw-bold">Port {p}</span>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => handleRemoveManualPort(p)} 
+                                                            className="btn btn-link p-0 ms-2 text-danger" 
+                                                            style={{ lineHeight: 0 }}
+                                                        >
+                                                            <X size={16} />
+                                                        </button>
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </>
                             )}
                         </Col>
@@ -647,77 +758,104 @@ export default function PortScan() {
                   </Row>
 
                   <Form.Group className="mb-3">
-                      <Form.Label className="small fw-bold text-muted">Target Branch ({schedSelectedBranches.length})</Form.Label>
-                      <Dropdown className="w-100 mb-2">
-                          <Dropdown.Toggle variant="light" className="w-100 text-start border d-flex justify-content-between align-items-center">
-                              -- Pilih Branch Target --
-                          </Dropdown.Toggle>
-                          <Dropdown.Menu className="w-100 shadow-sm" style={{maxHeight: '200px', overflowY: 'auto'}}>
-                              <div className="sticky-top bg-white border-bottom">
-                                  <Form.Control size="sm" placeholder="Cari Branch..." value={schedBranchSearch} onChange={e => setSchedBranchSearch(e.target.value)} />
-                                  <div 
-                                      className="d-grid mt-2 pb-1 border-bottom"
-                                      onClick={handleAddAllBranches}
-                                      style={{cursor: 'pointer'}}
-                                  >
-                                      <Badge bg="primary" className="p-2 fw-bold text-uppercase d-flex justify-content-center align-items-center gap-2">
-                                          <Plus size={14} strokeWidth={3}/> PILIH SEMUA BRANCH ({branches.length})
-                                      </Badge>
-                                  </div>
-                              </div>
-                              {getFilteredBranches(schedBranchSearch).map(b => (
-                                  <Dropdown.Item key={b.branch_id} onClick={() => handleAddSchedBranch(b)} className="d-flex justify-content-between align-items-center py-2 border-bottom">
-                                      {b.branch_name}
-                                      <Badge bg="light" text="primary" className="border fw-normal">{b.branch_cidr || b.cidr}</Badge>
-                                  </Dropdown.Item>
-                                  
-                              ))}
-                          </Dropdown.Menu>
-                      </Dropdown>
-                      <div className="d-flex flex-wrap gap-1 p-2 bg-light rounded border border-dashed" style={{minHeight: '50px'}}>
-                          {schedSelectedBranches.length === 0 && <small className="text-muted fst-italic">Belum ada branch dipilih.</small>}
-                          {schedSelectedBranches.map(b => (
-                              <Badge key={b.branch_id} bg="white" text="dark" className="border shadow-sm">
-                                  {b.branch_name} <span className="text-danger ms-1" style={{cursor:'pointer'}} onClick={() => setSchedSelectedBranches(schedSelectedBranches.filter(x => x.branch_id !== b.branch_id))}>×</span>
-                              </Badge>
-                          ))}
-                      </div>
+                      <Form.Label className="small fw-bold text-muted w-100 d-flex justify-content-between align-items-center mb-1">
+                        <span>Target Branch ({schedSelectedBranches.length})</span>
+                        {schedSelectedBranches.length > 0 && (
+                            <Badge bg="danger" className="text-white fw-normal" style={{cursor: 'pointer'}} onClick={() => setSchedSelectedBranches([])}>
+                                <Trash2 size={12} className="me-1"/> Hapus Semua
+                            </Badge>
+                        )}
+                    </Form.Label>
+                    
+                    <Dropdown className="w-100 mb-2">
+                        <Dropdown.Toggle variant="light" className="w-100 text-start border d-flex justify-content-between align-items-center">
+                            -- Pilih Branch Target --
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu className="w-100 shadow-sm" style={{maxHeight: '200px', overflowY: 'auto'}}>
+                            <div className="sticky-top bg-white border-bottom">
+                                <Form.Control size="sm" placeholder="Cari Branch..." value={schedBranchSearch} onChange={e => setSchedBranchSearch(e.target.value)} />
+                                <div className="d-grid mt-2 pb-1 border-bottom" onClick={handleAddAllBranches} style={{cursor: 'pointer'}}>
+                                    <Badge bg="primary" className="p-2 fw-bold text-uppercase d-flex justify-content-center align-items-center gap-2">
+                                        <Plus size={14} strokeWidth={3}/> PILIH SEMUA BRANCH ({branches.length})
+                                    </Badge>
+                                </div>
+                            </div>
+                            {getFilteredBranches(schedBranchSearch, schedSelectedBranches).map(b => (
+                                <Dropdown.Item key={b.branch_id} onClick={() => handleAddSchedBranch(b)} className="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    {b.branch_name}
+                                    <Badge bg="light" text="primary" className="border fw-normal">{b.branch_cidr || b.cidr}</Badge>
+                                </Dropdown.Item>
+                            ))}
+                        </Dropdown.Menu>
+                    </Dropdown>
+                    <div className="d-flex flex-wrap gap-1 p-2 bg-light rounded border border-dashed" style={{minHeight: '50px'}}>
+                        {schedSelectedBranches.length === 0 && <small className="text-muted fst-italic">Belum ada branch dipilih.</small>}
+                        {schedSelectedBranches.map(b => (
+                            <Badge key={b.branch_id} bg="white" text="dark" className="border shadow-sm px-2 py-1 d-flex align-items-center gap-2">
+                                <Globe size={12} className="text-primary"/> {b.branch_name} 
+                                <button type="button" className="btn btn-link p-0 ms-1 text-danger" onClick={() => setSchedSelectedBranches(schedSelectedBranches.filter(x => x.branch_id !== b.branch_id))} style={{lineHeight: 0}}><X size={14}/></button>
+                            </Badge>
+                        ))}
+                    </div>
                   </Form.Group>
 
                   <Row className="mb-3">
                       <Col md={4}>
-                          <Form.Label className="small fw-bold text-muted">Frekuensi</Form.Label>
-                          <Form.Select value={schedFreq} onChange={e => setSchedFreq(e.target.value)}>
-                              <option value="Daily">Harian (Daily)</option>
-                              <option value="Weekly">Mingguan</option>
-                              <option value="Hourly">Setiap Jam</option>
-                              <option value="Once">Sekali Saja</option>
-                          </Form.Select>
-                      </Col>
-                      <Col md={4}>
-                          <Form.Label className="small fw-bold text-muted">Mode Port</Form.Label>
-                          <Form.Select value={schedPortMode} onChange={e => setSchedPortMode(e.target.value)}>
-                              <option value="group">Use Port Group</option>
-                              <option value="single">Single Port</option>
-                              <option value="all" className="fw-bold text">SCAN ALL PORTS</option>
-                          </Form.Select>
-                      </Col>
-                      <Col md={4}>
-                          <Form.Label className="small fw-bold text-muted">Detail Port</Form.Label>
-                          {schedPortMode === 'group' && (
-                              <Form.Select value={schedPortGroupId} onChange={e => setSchedPortGroupId(e.target.value)}>
-                                  <option value="">- Pilih Group -</option>
-                                  <option value="0" className="fw-bold text">SCAN ALL PORTS</option>
-                                  {portGroups.map(pg => <option key={pg.pg_id} value={pg.pg_id}>{pg.pg_name}</option>)}
-                              </Form.Select>
-                          )}
-                          {schedPortMode === 'single' && (
-                              <Form.Control type="number" placeholder="80" value={schedManualPort} onChange={e => setSchedManualPort(e.target.value)} />
-                          )}
-                          {schedPortMode === 'all' && (
-                              <Form.Control type="text" value="Semua Port Master" disabled className="bg-light text-danger fw-bold" />
-                          )}
-                      </Col>
+                        <Form.Label className="small fw-bold text-muted">Frekuensi</Form.Label>
+                        <Form.Select value={schedFreq} onChange={e => setSchedFreq(e.target.value)}>
+                            <option value="Daily">Harian (Daily)</option>
+                            <option value="Weekly">Mingguan</option>
+                            <option value="Hourly">Setiap Jam</option>
+                            <option value="Once">Sekali Saja</option>
+                        </Form.Select>
+                    </Col>
+                    <Col md={4}>
+                        <Form.Label className="small fw-bold text-muted">Mode Port</Form.Label>
+                        <Form.Select value={schedPortMode} onChange={e => setSchedPortMode(e.target.value)}>
+                            <option value="group">Use Port Group</option>
+                            <option value="single">Single Port Manual</option>
+                        </Form.Select>
+                    </Col>
+                    <Col md={4}>
+                        <Form.Label className="small fw-bold text-muted">Detail Port</Form.Label>
+                        {schedPortMode === 'group' && (
+                            <Form.Select value={schedPortGroupId} onChange={e => setSchedPortGroupId(e.target.value)}>
+                                <option value="">- Pilih Group -</option>
+                                <option value="0" className="fw-bold text">SCAN ALL PORTS</option>
+                                {portGroups.map(pg => <option key={pg.pg_id} value={pg.pg_id}>{pg.pg_name}</option>)}
+                            </Form.Select>
+                        )}
+                        {schedPortMode === 'single' && (
+                            <>
+                                <Form.Control 
+                                    type="number" 
+                                    placeholder="Ketik & Enter..." 
+                                    value={schedSinglePortInput} 
+                                    onChange={e => setSchedSinglePortInput(e.target.value)} 
+                                    onKeyDown={handleKeyDownSchedPort}
+                                    className="mb-2"
+                                />
+                                <div className="p-2 bg-light rounded border border-dashed d-flex flex-column" style={{minHeight: '60px'}}>
+                                    <div className="w-100 d-flex justify-content-between align-items-center mb-2">
+                                        <span className="text-muted small fw-bold text-uppercase" style={{fontSize: '10px'}}>List ({schedManualPortsList.length})</span>
+                                        {schedManualPortsList.length > 0 && (
+                                            <Badge bg="danger" className="text-white fw-normal" style={{cursor:'pointer', fontSize: '10px'}} onClick={() => setSchedManualPortsList([])}>Hapus Semua</Badge>
+                                        )}
+                                    </div>
+                                    {schedManualPortsList.length === 0 ? <small className="text-muted fst-italic">Belum ada port.</small> : (
+                                        <div className="d-flex flex-wrap gap-1">
+                                            {schedManualPortsList.map(p => (
+                                                <Badge key={p} bg="white" text="dark" className="border shadow-sm px-2 py-1 d-flex align-items-center gap-1">
+                                                    <Server size={12} className="text-primary"/> Port {p} 
+                                                    <button type="button" className="btn btn-link p-0 text-danger ms-1" onClick={() => handleRemoveSchedManualPort(p)} style={{lineHeight: 0}}><X size={14}/></button>
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </Col>
                   </Row>
               </Form>
           </Modal.Body>

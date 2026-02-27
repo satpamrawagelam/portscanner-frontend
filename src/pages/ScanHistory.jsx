@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Card, Table, Badge, Form, InputGroup, Spinner, Button, Tabs, Tab } from "react-bootstrap";
 import { FileText, Search, Calendar, Server, Globe, ShieldAlert, CheckCircle, ChevronLeft, ChevronRight, Clock, Play, Download, Wifi, WifiOff } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
@@ -7,34 +7,37 @@ import { useSearchParams } from "react-router-dom";
 import API from "./API";
 
 export default function ScanHistory() {
-    const [rawData, setRawData] = useState([]); 
+    const [historyData, setHistoryData] = useState([]); 
     const [loading, setLoading] = useState(true);
     
     const [activeTab, setActiveTab] = useState("manual"); 
     const [searchTerm, setSearchTerm] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState(""); // Untuk delay ngetik
+    
+    // State untuk Pagination Server-side
     const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalRecords, setTotalRecords] = useState(0);
     const itemsPerPage = 10; 
 
     const [searchParams] = useSearchParams();
     const filterSchId = searchParams.get("schId"); 
     const toastShownRef = useRef(false);
 
+    // 1. Debounce Search (Biar API ga dipanggil tiap mencet 1 huruf)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchTerm);
+            setCurrentPage(1); // Balik ke page 1 tiap kali search berubah
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    // 2. Fetch Info Schedule jika dari link dashboard
     useEffect(() => {
         toastShownRef.current = false;
-    }, [filterSchId]);
-
-    useEffect(() => {
-        fetch(`${API}/History/GetHistory`) 
-            .then((res) => res.json())
-            .then((result) => setRawData(result))
-            .catch((err) => toast.error("Gagal memuat history"))
-            .finally(() => setLoading(false));
-    }, []);
-
-    useEffect(() => {
         if (filterSchId) {
             setActiveTab("scheduled");
-            
             fetch(`${API}/Schedule/Get/${filterSchId}`)
                 .then(res => res.json())
                 .then(data => {
@@ -46,87 +49,82 @@ export default function ScanHistory() {
                         }
                     }
                 })
-                .catch(err => console.error("Gagal load filter info", err))
-                .finally(() => setLoading(false));
+                .catch(err => console.error("Gagal load filter info", err));
         }
     }, [filterSchId]);
 
+    // 3. Main Fetch Function (Server-Side)
+    const fetchHistoryData = useCallback(() => {
+        setLoading(true);
+        // Panggil API dengan parameter query string
+        const url = `${API}/History/GetHistory?scanType=${activeTab}&page=${currentPage}&pageSize=${itemsPerPage}&search=${encodeURIComponent(debouncedSearch)}`;
+        
+        fetch(url)
+            .then((res) => res.json())
+            .then((result) => {
+                setHistoryData(result.data);
+                setTotalPages(result.totalPages);
+                setTotalRecords(result.totalRecords);
+            })
+            .catch((err) => toast.error("Gagal memuat history"))
+            .finally(() => setLoading(false));
+    }, [activeTab, currentPage, debouncedSearch]);
+
+    // Panggil fetch otomatis jika page, tab, atau pencarian berubah
     useEffect(() => {
+        fetchHistoryData();
+    }, [fetchHistoryData]);
+
+    const handleTabChange = (k) => {
+        setActiveTab(k);
         setCurrentPage(1);
-        if (!filterSchId) {
-            //  setSearchTerm("");
-        }
-    }, [activeTab, filterSchId]);
+    };
 
     const formatDate = (dateString) => {
         const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
         return new Date(dateString).toLocaleDateString('id-ID', options);
     };
 
-    const getFilteredData = () => {
-        let tabData = rawData;
-        
-        if (activeTab === "manual") {
-            tabData = rawData.filter(item => item.scanType !== 'Scheduled Scan');
-        } else {
-            tabData = rawData.filter(item => item.scanType === 'Scheduled Scan');
+    // Fungsi Export CSV butuh hit API terpisah tanpa pagination untuk narik SEMUA data (khusus filter itu saja)
+    const exportToCsv = async () => {
+        toast.info("Menyiapkan file CSV...");
+        try {
+            // Ambil data dalam jumlah besar (misal 10.000) khusus untuk export CSV
+            const url = `${API}/History/GetHistory?scanType=${activeTab}&page=1&pageSize=10000&search=${encodeURIComponent(debouncedSearch)}`;
+            const res = await fetch(url);
+            const result = await res.json();
+            
+            if (!result.data || result.data.length === 0) {
+                toast.warn("Tidak ada data untuk diexport");
+                return;
+            }
+
+            const headers = ["No,Waktu Scan,Judul Scan,Tipe Scan,Branch Name,IP Address,Open Ports"];
+            const rows = result.data.map((item, index) => {
+                const clean = (text) => `"${String(text || "").replace(/"/g, '""')}"`;
+                const dateFormatted = formatDate(item.scanDate);
+                return [
+                    index + 1, clean(dateFormatted), clean(item.scanTitle),
+                    clean(item.scanType || "Manual Scan"), clean(item.branchName),
+                    clean(item.ipAddress), clean(item.openPorts)
+                ].join(",");
+            });
+
+            const csvContent = [headers, ...rows].join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const downloadUrl = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = downloadUrl;
+            link.setAttribute("download", `History_${activeTab}_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            toast.success(`Berhasil export data ke CSV`);
+        } catch (error) {
+            toast.error("Gagal export CSV");
         }
-
-        if (!searchTerm) return tabData;
-
-        const term = searchTerm.toLowerCase();
-        return tabData.filter(item => {
-            const dateStr = formatDate(item.scanDate).toLowerCase();
-            return (
-                (item.branchName || "").toLowerCase().includes(term) ||
-                (item.ipAddress || "").includes(term) ||
-                (item.scanTitle || "").toLowerCase().includes(term) || 
-                dateStr.includes(term) 
-            );
-        });
     };
-
-    const filteredData = getFilteredData();
-
-    const exportToCsv = () => {
-        if (filteredData.length === 0) {
-            toast.warn("Tidak ada data untuk diexport");
-            return;
-        }
-
-        const headers = ["No,Waktu Scan,Judul Scan,Tipe Scan,Branch Name,IP Address,Open Ports"];
-        const rows = filteredData.map((item, index) => {
-            const clean = (text) => `"${String(text || "").replace(/"/g, '""')}"`;
-            const dateFormatted = formatDate(item.scanDate);
-
-            return [
-                index + 1,
-                clean(dateFormatted),
-                clean(item.scanTitle),
-                clean(item.scanType || "Manual Scan"),
-                clean(item.branchName),
-                clean(item.ipAddress),
-                clean(item.openPorts)
-            ].join(",");
-        });
-
-        const csvContent = [headers, ...rows].join("\n");
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `History_${activeTab}_${new Date().toISOString().slice(0,10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        toast.success(`Berhasil export ${filteredData.length} data ke CSV`);
-    };
-
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
     const renderPagination = () => {
         if (totalPages <= 1) return null;
@@ -165,22 +163,15 @@ export default function ScanHistory() {
                     <ShieldAlert size={18} /> 
                     {activeTab === 'manual' ? 'Daftar Temuan Manual Scan' : 'Daftar Temuan Scheduled Scan'}
                 </div>
-                
                 <div className="d-flex gap-2">
-                    <Button 
-                        variant="success" 
-                        size="sm" 
-                        className="d-flex align-items-center gap-2 fw-bold px-3 text-white"
-                        onClick={exportToCsv}
-                        title="Export data yang tampil ke Excel/CSV"
-                    >
+                    <Button variant="success" size="sm" className="d-flex align-items-center gap-2 fw-bold px-3 text-white" onClick={exportToCsv}>
                         <Download size={16} /> Export CSV
                     </Button>
 
                     <InputGroup style={{ maxWidth: '250px' }} size="sm">
                         <InputGroup.Text className="bg-light border-end-0"><Search size={16} className="text-muted"/></InputGroup.Text>
                         <Form.Control 
-                            placeholder="Cari Waktu / IP..." 
+                            placeholder="Cari Waktu / IP / Judul..." 
                             className="border-start-0 bg-light ps-0"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)} 
@@ -202,11 +193,11 @@ export default function ScanHistory() {
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan="5" className="text-center py-5"><Spinner size="sm"/> Memuat Data...</td></tr>
-                        ) : currentItems.length === 0 ? (
+                            <tr><td colSpan="5" className="text-center py-5"><Spinner size="sm" className="me-2"/> Memuat Data...</td></tr>
+                        ) : historyData.length === 0 ? (
                             <tr><td colSpan="5" className="text-center py-5 text-muted">Data tidak ditemukan.</td></tr>
                         ) : (
-                            currentItems.map((item, index) => (
+                            historyData.map((item, index) => (
                                 <tr key={index}>
                                     <td className="text-center text-muted small">
                                         {(currentPage - 1) * itemsPerPage + index + 1}
@@ -237,20 +228,16 @@ export default function ScanHistory() {
                                                 <Globe size={14} className="text-secondary"/>
                                                 <span className="font-monospace text-muted small me-2">{item.ipAddress}</span>
                                                 {item.hostStatus === true ? (
-                                                    <Badge bg="success" className="d-flex align-items-center gap-1" style={{fontSize: '9px', padding: '4px 6px'}}>
-                                                        <Wifi size={10} /> UP
-                                                    </Badge>
+                                                    <Badge bg="success" className="d-flex align-items-center gap-1" style={{fontSize: '9px', padding: '4px 6px'}}><Wifi size={10} /> UP</Badge>
                                                 ) : (
-                                                    <Badge bg="secondary" className="d-flex align-items-center gap-1 opacity-75" style={{fontSize: '9px', padding: '4px 6px'}}>
-                                                        <WifiOff size={10} /> DOWN
-                                                    </Badge>
+                                                    <Badge bg="secondary" className="d-flex align-items-center gap-1 opacity-75" style={{fontSize: '9px', padding: '4px 6px'}}><WifiOff size={10} /> DOWN</Badge>
                                                 )}
                                             </div>
                                         </div>
                                     </td>
                                     <td>
                                         <div className="d-flex align-items-start gap-2">
-                                            {item.openPorts === '-' || item.openPorts === '0' ? (
+                                            {item.openPorts === '-' || item.openPorts === '0' || item.openPorts === '' || item.openPorts === null ? (
                                                 <>
                                                     <CheckCircle size={16} className="text-success mt-1 flex-shrink-0"/>
                                                     <span className="text-success fw-bold font-monospace">All Closed</span>
@@ -274,7 +261,7 @@ export default function ScanHistory() {
             
             <Card.Footer className="bg-white py-3 d-flex justify-content-between align-items-center">
                  <div className="text-muted small">
-                    Menampilkan {filteredData.length > 0 ? indexOfFirstItem + 1 : 0} - {Math.min(indexOfLastItem, filteredData.length)} dari {filteredData.length} data.
+                    Total: <strong className="text-dark">{totalRecords}</strong> data.
                  </div>
                  {renderPagination()}
             </Card.Footer>
@@ -294,7 +281,7 @@ export default function ScanHistory() {
                 </div>
             </div>
 
-            <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="mb-0 border-bottom-0" fill>
+            <Tabs activeKey={activeTab} onSelect={handleTabChange} className="mb-0 border-bottom-0" fill>
                 <Tab eventKey="manual" title={<span className="fw-bold d-flex align-items-center justify-content-center gap-2 py-2"><Play size={16}/> Riwayat Manual Scan</span>}>
                     {historyTableContent}
                 </Tab>
