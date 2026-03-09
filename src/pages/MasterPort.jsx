@@ -46,7 +46,7 @@ export default function MasterPort() {
     if (!newPort) return toast.warn("Nomor Port wajib diisi");
     if (newDesc.trim() == "") return toast.warn("Deskripsi tidak valid") 
     
-    const isExist = ports.some(p => p.pm_portNumber === Number(newPort));
+    const isExist = ports.some(p => p.pm_port_number === Number(newPort));
     if (isExist) return toast.error(`Port ${newPort} sudah ada di group ini!`);
 
     setIsProcessing(true);
@@ -71,9 +71,9 @@ export default function MasterPort() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-            Pm_portGroup: Number(groupId),
-            Pm_portNumber: portNum,
-            Pm_desc: desc || "",
+            Pg_id: Number(groupId),
+            Pm_port_number: portNum,
+            Pm_port_desc: desc || "",
             Pm_severity: severity || "Medium"
         })
     });
@@ -111,7 +111,7 @@ export default function MasterPort() {
                 let pSeverity = validSeverities.find(s => s.toLowerCase() === inputSeverity.toLowerCase()) || "Medium";
 
                 if (!isNaN(pPort) && pPort > 0) {
-                    const isExist = ports.some(p => p.pm_portNumber === pPort);
+                    const isExist = ports.some(p => p.pm_port_number === pPort);
                     
                     if (!isExist) {
                         try {
@@ -158,8 +158,8 @@ export default function MasterPort() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                Pm_portNumber: Number(editPort),
-                Pm_desc: editDesc,
+                Pm_port_number: Number(editPort),
+                Pm_port_desc: editDesc,
                 Pm_severity: editSeverity 
             })
         });
@@ -192,8 +192,8 @@ export default function MasterPort() {
   };
 
   const filteredPorts = ports.filter(p => 
-    p.pm_portNumber.toString().includes(searchTerm) || 
-    (p.pm_desc && p.pm_desc.toLowerCase().includes(searchTerm.toLowerCase()))
+    p.pm_port_number.toString().includes(searchTerm) || 
+    (p.pm_port_desc && p.pm_port_desc.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -346,7 +346,7 @@ export default function MasterPort() {
                                         />
                                     ) : (
                                         <Badge bg="light" text="dark" className="border px-3 py-2 fs-6">
-                                            {p.pm_portNumber}
+                                            {p.pm_port_number}
                                         </Badge>
                                     )}
                                 </td>
@@ -375,8 +375,8 @@ export default function MasterPort() {
                                             size="sm" value={editDesc} onChange={(e) => setEditDesc(e.target.value)}
                                         />
                                     ) : (
-                                        <span className={p.pm_desc ? "text-dark" : "text-muted fst-italic"}>
-                                            {p.pm_desc || "-"}
+                                        <span className={p.pm_port_desc ? "text-dark" : "text-muted fst-italic"}>
+                                            {p.pm_port_desc || "-"}
                                         </span>
                                     )}
                                 </td>
@@ -393,8 +393,8 @@ export default function MasterPort() {
                                                 size="sm" variant="light" className="text-warning border"
                                                 onClick={() => {
                                                     setEditId(p.pm_id);
-                                                    setEditPort(p.pm_portNumber);
-                                                    setEditDesc(p.pm_desc);
+                                                    setEditPort(p.pm_port_number);
+                                                    setEditDesc(p.pm_port_desc);
                                                     setEditSeverity(p.pm_severity || "Low");
                                                 }}
                                             >

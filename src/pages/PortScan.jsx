@@ -156,8 +156,8 @@ export default function PortScan() {
           setSchedTime(detail.sch_time.substring(0, 5));
           setSchedFreq(detail.sch_frequency);
           setSchedPortMode(detail.sch_portMode);
-          setSchedPortGroupId(detail.sch_targetPortGroupId || "");
-          setSchedManualPortsList(detail.sch_targetManualPorts || []);
+          setSchedPortGroupId(detail.sch_pgId || "");
+          setSchedManualPortsList(detail.sch_targetManualPort || []);
           const mappedBranches = detail.targets.map(t => ({
               branch_id: t.branchId, branch_name: t.branchName, branch_cidr: t.branchCidr
           }));
@@ -178,8 +178,8 @@ export default function PortScan() {
     const payload = {
         Sch_title: schedTitle, Sch_frequency: schedFreq, Sch_time: schedTime + ":00", 
         Sch_portMode: schedPortMode,
-        Sch_targetPortGroupId: schedPortMode === 'group' ? parseInt(schedPortGroupId) : null,
-        Sch_targetManualPorts: schedPortMode === 'single' ? schedManualPortsList : null,
+        Sch_pgId: schedPortMode === 'group' ? parseInt(schedPortGroupId) : null,
+        Sch_targetManualPort: schedPortMode === 'single' ? schedManualPortsList : null,
         TargetBranchIds: schedSelectedBranches.map(b => b.branch_id) 
     };
 
@@ -669,7 +669,7 @@ export default function PortScan() {
                                              {item.sch_portMode === 'all' ? (
                                                  <Badge bg="danger" className="bg-opacity-10 text-danger border border-danger">ALL PORTS</Badge>
                                              ) : item.sch_portMode === 'group' ? (
-                                                 <Badge bg="info" className="bg-opacity-10 text-info border border-info">Group ID: {getPortGroupName(item.sch_targetPortGroupId)}</Badge>
+                                                 <Badge bg="info" className="bg-opacity-10 text-info border border-info">Group ID: {getPortGroupName(item.sch_pgId)}</Badge>
                                              ) : (
                                                  <Badge bg="secondary" className="bg-opacity-10 text-secondary border border-secondary">Port: {item.sch_targetManualPort}</Badge>
                                              )}
@@ -893,7 +893,7 @@ export default function PortScan() {
                                   <small className="d-block text-muted">Target Port</small>
                                   <strong className="text-dark">
                                       {selectedScheduleDetail.sch_portMode === 'all' ? 'All Ports (Full Scan)' : 
-                                       selectedScheduleDetail.sch_portMode === 'group' ? getPortGroupName(selectedScheduleDetail.sch_targetPortGroupId) : 
+                                       selectedScheduleDetail.sch_portMode === 'group' ? getPortGroupName(selectedScheduleDetail.sch_pgId) : 
                                        `Port ${selectedScheduleDetail.sch_targetManualPort}`}
                                   </strong>
                               </Col>
