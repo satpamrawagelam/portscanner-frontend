@@ -1,39 +1,40 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { Card, Table, Badge, Form, InputGroup, Spinner, Button, Tabs, Tab } from "react-bootstrap";
+import { Card, Table, Badge, Form, InputGroup, Spinner, Button, Tabs, Tab, Modal } from "react-bootstrap";
 import { FileText, Search, Calendar, Server, Globe, ShieldAlert, CheckCircle, ChevronLeft, ChevronRight, Clock, Play, Download, Wifi, WifiOff } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
-import { useSearchParams } from "react-router-dom"; 
+import { useSearchParams } from "react-router-dom";
 
 import API from "./API";
 
 export default function ScanHistory() {
-    const [historyData, setHistoryData] = useState([]); 
+    const [historyData, setHistoryData] = useState([]);
     const [loading, setLoading] = useState(true);
-    
-    const [activeTab, setActiveTab] = useState("manual"); 
+
+    const [activeTab, setActiveTab] = useState("manual");
     const [searchTerm, setSearchTerm] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState(""); // Untuk delay ngetik
-    
-    // State untuk Pagination Server-side
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+
+    const [showPortsModal, setShowPortsModal] = useState(false);
+    const [selectedPorts, setSelectedPorts] = useState("");
+    const [selectedIpTitle, setSelectedIpTitle] = useState("");
+
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
-    const itemsPerPage = 10; 
+    const itemsPerPage = 10;
 
     const [searchParams] = useSearchParams();
-    const filterSchId = searchParams.get("schId"); 
+    const filterSchId = searchParams.get("schId");
     const toastShownRef = useRef(false);
 
-    // 1. Debounce Search (Biar API ga dipanggil tiap mencet 1 huruf)
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(searchTerm);
-            setCurrentPage(1); // Balik ke page 1 tiap kali search berubah
-        }, 500);
+            setCurrentPage(1);
+        }, 1000);
         return () => clearTimeout(timer);
     }, [searchTerm]);
 
-    // 2. Fetch Info Schedule jika dari link dashboard
     useEffect(() => {
         toastShownRef.current = false;
         if (filterSchId) {
@@ -43,7 +44,7 @@ export default function ScanHistory() {
                 .then(data => {
                     if (data && data.sch_title) {
                         setSearchTerm(data.sch_title);
-                        if(!toastShownRef.current){
+                        if (!toastShownRef.current) {
                             toast.info(`Memfilter hasil untuk: ${data.sch_title}`);
                             toastShownRef.current = true;
                         }
@@ -53,12 +54,10 @@ export default function ScanHistory() {
         }
     }, [filterSchId]);
 
-    // 3. Main Fetch Function (Server-Side)
     const fetchHistoryData = useCallback(() => {
         setLoading(true);
-        // Panggil API dengan parameter query string
         const url = `${API}/History/GetHistory?scanType=${activeTab}&page=${currentPage}&pageSize=${itemsPerPage}&search=${encodeURIComponent(debouncedSearch)}`;
-        
+
         fetch(url)
             .then((res) => res.json())
             .then((result) => {
@@ -70,7 +69,6 @@ export default function ScanHistory() {
             .finally(() => setLoading(false));
     }, [activeTab, currentPage, debouncedSearch]);
 
-    // Panggil fetch otomatis jika page, tab, atau pencarian berubah
     useEffect(() => {
         fetchHistoryData();
     }, [fetchHistoryData]);
@@ -85,15 +83,13 @@ export default function ScanHistory() {
         return new Date(dateString).toLocaleDateString('id-ID', options);
     };
 
-    // Fungsi Export CSV butuh hit API terpisah tanpa pagination untuk narik SEMUA data (khusus filter itu saja)
     const exportToCsv = async () => {
         toast.info("Menyiapkan file CSV...");
         try {
-            // Ambil data dalam jumlah besar (misal 10.000) khusus untuk export CSV
             const url = `${API}/History/GetHistory?scanType=${activeTab}&page=1&pageSize=10000&search=${encodeURIComponent(debouncedSearch)}`;
             const res = await fetch(url);
             const result = await res.json();
-            
+
             if (!result.data || result.data.length === 0) {
                 toast.warn("Tidak ada data untuk diexport");
                 return;
@@ -115,11 +111,11 @@ export default function ScanHistory() {
             const downloadUrl = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = downloadUrl;
-            link.setAttribute("download", `History_${activeTab}_${new Date().toISOString().slice(0,10)}.csv`);
+            link.setAttribute("download", `History_${activeTab}_${new Date().toISOString().slice(0, 10)}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
+
             toast.success(`Berhasil export data ke CSV`);
         } catch (error) {
             toast.error("Gagal export CSV");
@@ -147,11 +143,11 @@ export default function ScanHistory() {
 
         return (
             <div className="d-flex align-items-center gap-1">
-                <Button variant="outline-secondary" size="sm" className="px-2" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={16}/></Button>
+                <Button variant="outline-secondary" size="sm" className="px-2" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={16} /></Button>
                 {pages.map((p, idx) => (
-                    <Button key={idx} variant={p === currentPage ? "primary" : "outline-secondary"} size="sm" className="px-3 fw-bold" onClick={() => typeof p === 'number' && setCurrentPage(p)} disabled={p === "..."} style={{minWidth: '35px'}}>{p}</Button>
+                    <Button key={idx} variant={p === currentPage ? "primary" : "outline-secondary"} size="sm" className="px-3 fw-bold" onClick={() => typeof p === 'number' && setCurrentPage(p)} disabled={p === "..."} style={{ minWidth: '35px' }}>{p}</Button>
                 ))}
-                <Button variant="outline-secondary" size="sm" className="px-2" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}><ChevronRight size={16}/></Button>
+                <Button variant="outline-secondary" size="sm" className="px-2" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}><ChevronRight size={16} /></Button>
             </div>
         );
     };
@@ -160,7 +156,7 @@ export default function ScanHistory() {
         <Card className="card-enterprise border-0 shadow-sm mt-3">
             <Card.Header className="bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div className="d-flex align-items-center gap-2 fw-bold text-secondary">
-                    <ShieldAlert size={18} /> 
+                    <ShieldAlert size={18} />
                     {activeTab === 'manual' ? 'Daftar Temuan Manual Scan' : 'Daftar Temuan Scheduled Scan'}
                 </div>
                 <div className="d-flex gap-2">
@@ -169,12 +165,12 @@ export default function ScanHistory() {
                     </Button>
 
                     <InputGroup style={{ maxWidth: '250px' }} size="sm">
-                        <InputGroup.Text className="bg-light border-end-0"><Search size={16} className="text-muted"/></InputGroup.Text>
-                        <Form.Control 
-                            placeholder="Cari Waktu / IP / Judul..." 
+                        <InputGroup.Text className="bg-light border-end-0"><Search size={16} className="text-muted" /></InputGroup.Text>
+                        <Form.Control
+                            placeholder="Cari Waktu / IP / Judul..."
                             className="border-start-0 bg-light ps-0"
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)} 
+                            onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </InputGroup>
                 </div>
@@ -184,8 +180,8 @@ export default function ScanHistory() {
                 <Table hover responsive className="mb-0 align-middle">
                     <thead className="bg-light text-secondary small text-uppercase">
                         <tr>
-                            <th className="ps-4 text-center" style={{width: '50px'}}>No</th>
-                            <th style={{width: '180px'}}>Waktu Scan</th>
+                            <th className="ps-4 text-center" style={{ width: '50px' }}>No</th>
+                            <th style={{ width: '180px' }}>Waktu Scan</th>
                             <th>Informasi Scan</th>
                             <th>Branch & IP</th>
                             <th>Open Ports Found</th>
@@ -193,7 +189,7 @@ export default function ScanHistory() {
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan="5" className="text-center py-5"><Spinner size="sm" className="me-2"/> Memuat Data...</td></tr>
+                            <tr><td colSpan="5" className="text-center py-5"><Spinner size="sm" className="me-2" /> Memuat Data...</td></tr>
                         ) : historyData.length === 0 ? (
                             <tr><td colSpan="5" className="text-center py-5 text-muted">Data tidak ditemukan.</td></tr>
                         ) : (
@@ -204,11 +200,11 @@ export default function ScanHistory() {
                                     </td>
                                     <td>
                                         <div className="d-flex flex-column">
-                                            <span className="fw-bold text-dark" style={{fontSize: '14px'}}>
+                                            <span className="fw-bold text-dark" style={{ fontSize: '14px' }}>
                                                 {formatDate(item.scanDate).split(' pukul ')[0]}
                                             </span>
                                             <small className="text-muted d-flex align-items-center gap-1">
-                                                <Calendar size={12}/> {new Date(item.scanDate).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})}
+                                                <Calendar size={12} /> {new Date(item.scanDate).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                                             </small>
                                         </div>
                                     </td>
@@ -221,16 +217,16 @@ export default function ScanHistory() {
                                     <td>
                                         <div className="d-flex flex-column">
                                             <div className="d-flex align-items-center gap-2 mb-1">
-                                                <Server size={14} className="text-secondary"/>
+                                                <Server size={14} className="text-secondary" />
                                                 <span className="fw-bold text-dark">{item.branchName}</span>
                                             </div>
                                             <div className="d-flex align-items-center gap-2">
-                                                <Globe size={14} className="text-secondary"/>
+                                                <Globe size={14} className="text-secondary" />
                                                 <span className="font-monospace text-muted small me-2">{item.ipAddress}</span>
                                                 {item.hostStatus === true ? (
-                                                    <Badge bg="success" className="d-flex align-items-center gap-1" style={{fontSize: '9px', padding: '4px 6px'}}><Wifi size={10} /> UP</Badge>
+                                                    <Badge bg="success" className="d-flex align-items-center gap-1" style={{ fontSize: '9px', padding: '4px 6px' }}><Wifi size={10} /> UP</Badge>
                                                 ) : (
-                                                    <Badge bg="secondary" className="d-flex align-items-center gap-1 opacity-75" style={{fontSize: '9px', padding: '4px 6px'}}><WifiOff size={10} /> DOWN</Badge>
+                                                    <Badge bg="secondary" className="d-flex align-items-center gap-1 opacity-75" style={{ fontSize: '9px', padding: '4px 6px' }}><WifiOff size={10} /> DOWN</Badge>
                                                 )}
                                             </div>
                                         </div>
@@ -239,15 +235,38 @@ export default function ScanHistory() {
                                         <div className="d-flex align-items-start gap-2">
                                             {item.openPorts === '-' || item.openPorts === '0' || item.openPorts === '' || item.openPorts === null ? (
                                                 <>
-                                                    <CheckCircle size={16} className="text-success mt-1 flex-shrink-0"/>
+                                                    <CheckCircle size={16} className="text-success mt-1 flex-shrink-0" />
                                                     <span className="text-success fw-bold font-monospace">All Closed</span>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <ShieldAlert size={16} className="text-danger mt-1 flex-shrink-0"/>
-                                                    <span className="text-danger fw-bold font-monospace text-wrap" style={{maxWidth: '300px'}}>
-                                                        {item.openPorts}
-                                                    </span>
+                                                    <ShieldAlert size={16} className="text-danger mt-1 flex-shrink-0" />
+                                                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                                                        <span className="text-danger fw-bold font-monospace text-wrap" style={{ maxWidth: '300px' }}>
+                                                            {(() => {
+                                                                const portsArr = item.openPorts.split(',').map(p => p.trim()).filter(p => p);
+                                                                if (portsArr.length > 3) {
+                                                                    return portsArr.slice(0, 3).join(', ') + ' ...';
+                                                                }
+                                                                return item.openPorts;
+                                                            })()}
+                                                        </span>
+                                                        {item.openPorts && item.openPorts.split(',').filter(p => p.trim()).length > 3 && (
+                                                            <Button
+                                                                variant="outline-danger"
+                                                                size="sm"
+                                                                className="py-0 px-2 fw-bold"
+                                                                style={{ fontSize: '11px', borderRadius: '12px' }}
+                                                                onClick={() => {
+                                                                    setSelectedPorts(item.openPorts);
+                                                                    setSelectedIpTitle(item.ipAddress);
+                                                                    setShowPortsModal(true);
+                                                                }}
+                                                            >
+                                                                Detail
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 </>
                                             )}
                                         </div>
@@ -258,12 +277,12 @@ export default function ScanHistory() {
                     </tbody>
                 </Table>
             </Card.Body>
-            
+
             <Card.Footer className="bg-white py-3 d-flex justify-content-between align-items-center">
-                 <div className="text-muted small">
+                <div className="text-muted small">
                     Total: <strong className="text-dark">{totalRecords}</strong> data.
-                 </div>
-                 {renderPagination()}
+                </div>
+                {renderPagination()}
             </Card.Footer>
         </Card>
     );
@@ -273,7 +292,7 @@ export default function ScanHistory() {
             <ToastContainer position="bottom-right" autoClose={3000} />
             <div className="d-flex align-items-center gap-3 mb-4">
                 <div className="bg-primary bg-opacity-10 p-2 rounded">
-                    <FileText size={24} className="text-primary"/>
+                    <FileText size={24} className="text-primary" />
                 </div>
                 <div>
                     <h3 className="fw-bold text-dark mb-0">Scan History Log</h3>
@@ -282,13 +301,35 @@ export default function ScanHistory() {
             </div>
 
             <Tabs activeKey={activeTab} onSelect={handleTabChange} className="mb-0 border-bottom-0" fill>
-                <Tab eventKey="manual" title={<span className="fw-bold d-flex align-items-center justify-content-center gap-2 py-2"><Play size={16}/> Riwayat Manual Scan</span>}>
+                <Tab eventKey="manual" title={<span className="fw-bold d-flex align-items-center justify-content-center gap-2 py-2"><Play size={16} /> Riwayat Manual Scan</span>}>
                     {historyTableContent}
                 </Tab>
-                <Tab eventKey="scheduled" title={<span className="fw-bold d-flex align-items-center justify-content-center gap-2 py-2"><Clock size={16}/> Riwayat Scheduled Scan</span>}>
+                <Tab eventKey="scheduled" title={<span className="fw-bold d-flex align-items-center justify-content-center gap-2 py-2"><Clock size={16} /> Riwayat Scheduled Scan</span>}>
                     {historyTableContent}
                 </Tab>
             </Tabs>
+
+            <Modal show={showPortsModal} onHide={() => setShowPortsModal(false)} centered>
+                <Modal.Header closeButton className="bg-light">
+                    <Modal.Title className="h5 fw-bold d-flex align-items-center gap-2 text-danger">
+                        <ShieldAlert size={20} /> Detail Open Ports
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="p-4">
+                    <div className="mb-3 d-flex flex-column">
+                        <span className="text-muted small fw-bold text-uppercase">Target IP Address</span>
+                        <span className="font-monospace fs-5 fw-bold text-dark">{selectedIpTitle}</span>
+                    </div>
+                    <hr />
+                    <div className="d-flex flex-wrap gap-2 mt-3">
+                        {selectedPorts.split(',').map(p => p.trim()).filter(p => p).map((p, idx) => (
+                            <Badge key={idx} bg="danger" className="px-3 py-2 font-monospace shadow-sm" style={{ fontSize: '14px', borderRadius: '8px' }}>
+                                Port {p}
+                            </Badge>
+                        ))}
+                    </div>
+                </Modal.Body>
+            </Modal>
         </div>
     );
 }
