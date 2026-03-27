@@ -103,7 +103,6 @@ export default function PortScan() {
   const handleScan = async () => {
     if (!scanTitle) return toast.warn("Isi Judul Scan!");
     if (selectedBranches.length === 0) return toast.warn("Pilih minimal 1 Branch!");
-        console.log(selectedBranches);
     if (portMode === "group" && !portGroupId && portGroupId !== 0 && portGroupId !== "0") {
         return toast.warn("Pilih Group Port atau opsi All Ports!");
     }
@@ -113,23 +112,25 @@ export default function PortScan() {
 
     setLoading(true); setResults([]); startFakeProgress();
     try {
-        let tempResults = [];
-        for (let i = 0; i < selectedBranches.length; i++) {
-            const branch = selectedBranches[i];
-            const payload = {
-                Title: scanTitle,
-                Branch_id: Number(branch.branch_id || branch.id),
-                Pg_id: portMode === "group" ? parseInt(portGroupId) : null,
-                Manual_ports: portMode === "single" ? manualPortsList : null,
-            };
-            const res = await fetch(`${API}/scan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)});
-            const data = await res.json();
-            data.branchName = branch.branch_name || branch.name;
-            data.branchCidr = branch.branch_cidr || branch.cidr;
-            tempResults.push(data);
+        const payload = {
+            Title: scanTitle,
+            BranchIds: selectedBranches.map(b => Number(b.branch_id || b.id)),
+            Pg_id: portMode === "group" ? parseInt(portGroupId) : null,
+            Manual_ports: portMode === "single" ? manualPortsList : null,
+        };
+        const res = await fetch(`${API}/scan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)});
+        if (!res.ok) {
+            const errDetails = await res.text();
+            throw new Error(errDetails || "Gagal melakukan scan");
         }
-        setResults(tempResults); toast.success("Scan Selesai!");
-    } catch(e) { toast.error("Error Scan"); } 
+        const data = await res.json();
+        
+        setResults(data); 
+        toast.success("Scan Selesai!");
+    } catch(e) { 
+        console.error(e);
+        toast.error("Error Scan: " + e.message); 
+    } 
     finally { setLoading(false); stopFakeProgress(); }
   };
   
@@ -803,9 +804,10 @@ export default function PortScan() {
                       <Col md={4}>
                         <Form.Label className="small fw-bold text-muted">Frekuensi</Form.Label>
                         <Form.Select value={schedFreq} onChange={e => setSchedFreq(e.target.value)}>
+                            <option value="5 Minutes">Per 5 Menit</option>
+                            <option value="Hourly">Setiap Jam</option>
                             <option value="Daily">Harian (Daily)</option>
                             <option value="Weekly">Mingguan</option>
-                            <option value="Hourly">Setiap Jam</option>
                             <option value="Once">Sekali Saja</option>
                         </Form.Select>
                     </Col>

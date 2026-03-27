@@ -19,8 +19,6 @@ export default function ScanHistory() {
     const [selectedIpTitle, setSelectedIpTitle] = useState("");
 
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [totalRecords, setTotalRecords] = useState(0);
     const itemsPerPage = 10;
 
     const [searchParams] = useSearchParams();
@@ -30,7 +28,7 @@ export default function ScanHistory() {
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(searchTerm);
-            setCurrentPage(1);
+            setCurrentPage(1); // Reset ke halaman 1 kalau pencarian berubah
         }, 1000);
         return () => clearTimeout(timer);
     }, [searchTerm]);
@@ -61,9 +59,9 @@ export default function ScanHistory() {
         fetch(url)
             .then((res) => res.json())
             .then((result) => {
-                setHistoryData(result.data);
-                setTotalPages(result.totalPages);
-                setTotalRecords(result.totalRecords);
+                // Menyesuaikan jika response API berubah (pakai result.data atau langsung result)
+                const dataArray = result.data || result || [];
+                setHistoryData(dataArray);
             })
             .catch((err) => toast.error("Gagal memuat history"))
             .finally(() => setLoading(false));
@@ -89,14 +87,15 @@ export default function ScanHistory() {
             const url = `${API}/History/GetHistory?scanType=${activeTab}&page=1&pageSize=10000&search=${encodeURIComponent(debouncedSearch)}`;
             const res = await fetch(url);
             const result = await res.json();
+            const dataToExport = result.data || result || [];
 
-            if (!result.data || result.data.length === 0) {
+            if (!dataToExport || dataToExport.length === 0) {
                 toast.warn("Tidak ada data untuk diexport");
                 return;
             }
 
             const headers = ["No,Waktu Scan,Judul Scan,Tipe Scan,Branch Name,IP Address,Open Ports"];
-            const rows = result.data.map((item, index) => {
+            const rows = dataToExport.map((item, index) => {
                 const clean = (text) => `"${String(text || "").replace(/"/g, '""')}"`;
                 const dateFormatted = formatDate(item.scanDate);
                 return [
@@ -123,31 +122,32 @@ export default function ScanHistory() {
     };
 
     const renderPagination = () => {
-        if (totalPages <= 1) return null;
-        let pages = [];
-        const maxButtons = 5;
-
-        if (totalPages <= maxButtons) {
-            for (let i = 1; i <= totalPages; i++) pages.push(i);
-        } else {
-            pages.push(1);
-            if (currentPage > 3) pages.push("...");
-            let start = Math.max(2, currentPage - 1);
-            let end = Math.min(totalPages - 1, currentPage + 1);
-            if (currentPage <= 3) end = Math.min(totalPages - 1, 4);
-            if (currentPage >= totalPages - 2) start = Math.max(2, totalPages - 3);
-            for (let i = start; i <= end; i++) pages.push(i);
-            if (currentPage < totalPages - 2) pages.push("...");
-            pages.push(totalPages);
-        }
-
         return (
-            <div className="d-flex align-items-center gap-1">
-                <Button variant="outline-secondary" size="sm" className="px-2" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={16} /></Button>
-                {pages.map((p, idx) => (
-                    <Button key={idx} variant={p === currentPage ? "primary" : "outline-secondary"} size="sm" className="px-3 fw-bold" onClick={() => typeof p === 'number' && setCurrentPage(p)} disabled={p === "..."} style={{ minWidth: '35px' }}>{p}</Button>
-                ))}
-                <Button variant="outline-secondary" size="sm" className="px-2" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}><ChevronRight size={16} /></Button>
+            <div className="d-flex align-items-center gap-2">
+                <Button 
+                    variant="outline-secondary" 
+                    size="sm" 
+                    className="px-3 d-flex align-items-center gap-1 fw-bold" 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                    disabled={currentPage === 1 || loading}
+                >
+                    <ChevronLeft size={16} /> Prev
+                </Button>
+                
+                <span className="text-muted small fw-bold mx-2">
+                    Page {currentPage}
+                </span>
+
+                <Button 
+                    variant="outline-secondary" 
+                    size="sm" 
+                    className="px-3 d-flex align-items-center gap-1 fw-bold" 
+                    onClick={() => setCurrentPage(p => p + 1)} 
+                    // Logika Pintar: Kalau data yang didapat < 10, berarti sudah mentok di halaman terakhir
+                    disabled={historyData.length < itemsPerPage || loading}
+                >
+                    Next <ChevronRight size={16} />
+                </Button>
             </div>
         );
     };
@@ -280,7 +280,7 @@ export default function ScanHistory() {
 
             <Card.Footer className="bg-white py-3 d-flex justify-content-between align-items-center">
                 <div className="text-muted small">
-                    Total: <strong className="text-dark">{totalRecords}</strong> data.
+                    Menampilkan data Halaman <strong className="text-dark">{currentPage}</strong>
                 </div>
                 {renderPagination()}
             </Card.Footer>
