@@ -120,10 +120,45 @@ export default function MasterBranch() {
     }
   };
 
-  const filteredData = branches.filter(b => 
-    b.branch_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (b.branch_cidr && b.branch_cidr.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const ipToLong = (ip) => {
+      return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
+  };
+
+  const isIpInCidr = (ip, cidr) => {
+      if (!ip || !cidr || !cidr.includes('/')) return false;
+      
+      const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+      if (!ipv4Regex.test(ip)) return false;
+      if (ip.split('.').some(octet => parseInt(octet) > 255)) return false;
+
+      const [subnet, maskLength] = cidr.split('/');
+      const mask = parseInt(maskLength, 10);
+      
+      if(isNaN(mask) || mask < 0 || mask > 32) return false;
+      if (!ipv4Regex.test(subnet)) return false;
+
+      const ipLong = ipToLong(ip);
+      const subnetLong = ipToLong(subnet);
+      
+      const maskLong = mask === 0 ? 0 : (~0 << (32 - mask)) >>> 0;
+      
+      return (ipLong & maskLong) === (subnetLong & maskLong);
+  };
+
+  const filteredData = branches.filter(b => {
+      const searchLower = searchTerm.trim().toLowerCase();
+      
+      const matchNameOrCidr = 
+          b.branch_name.toLowerCase().includes(searchLower) ||
+          (b.branch_cidr && b.branch_cidr.toLowerCase().includes(searchLower));
+
+      let matchIpInCidr = false;
+      if (b.branch_cidr && searchLower) {
+          matchIpInCidr = isIpInCidr(searchLower, b.branch_cidr);
+      }
+      
+      return matchNameOrCidr || matchIpInCidr;
+  });
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
