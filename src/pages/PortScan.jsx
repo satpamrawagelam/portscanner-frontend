@@ -805,6 +805,7 @@ export default function PortScan() {
                         <Form.Label className="small fw-bold text-muted">Frekuensi</Form.Label>
                         <Form.Select value={schedFreq} onChange={e => setSchedFreq(e.target.value)}>
                             <option value="5 Minutes">Per 5 Menit</option>
+                            <option value="20 Minutes">Per 20 Menit</option>
                             <option value="Hourly">Setiap Jam</option>
                             <option value="Daily">Harian (Daily)</option>
                             <option value="Weekly">Mingguan</option>
