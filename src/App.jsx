@@ -1,8 +1,12 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './components/MainLayout';
 
 import Dashboard from './pages/Dashboard';
+import DashboardOverview from './pages/DashboardOverview';
+import DashboardSeverity from './pages/DashboardSeverity';
+import DashboardTrend from './pages/DashboardTrend';
+import DashboardBranchHealth from './pages/DashboardBranchHealth';
 import PortScan from './pages/PortScan';
 import MasterGroup from './pages/MasterGroup';
 import MasterPort from './pages/MasterPort';
@@ -18,7 +22,12 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<MainLayout />}>
-          <Route index element={<Dashboard />} />
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="dashboard/overview" element={<DashboardOverview />} />
+          <Route path="dashboard/severity" element={<DashboardSeverity />} />
+          <Route path="dashboard/trend" element={<DashboardTrend />} />
+          <Route path="dashboard/branch-health" element={<DashboardBranchHealth />} />
           <Route path="scan" element={<PortScan />} />
           <Route path="mastergroup" element={<MasterGroup />} />
           <Route path="master/port/:id" element={<MasterPort />} />

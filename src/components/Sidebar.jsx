@@ -1,27 +1,27 @@
-import React from "react";
+import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { Collapse } from "react-bootstrap";
 import { 
   LayoutDashboard, 
   Radar, 
   Server, 
   Settings, 
   ShieldCheck, 
-  Menu,
-  FileText
+  FileText,
+  ChevronDown,
+  ChevronRight,
+  Activity,
+  AlertTriangle,
+  TrendingUp
 } from "lucide-react";
 
 export default function Sidebar() {
   const location = useLocation();
+  const [dashboardOpen, setDashboardOpen] = useState(location.pathname.startsWith('/dashboard') || location.pathname === '/');
+
+  const isDashboardActive = location.pathname.startsWith('/dashboard') || location.pathname === '/';
 
   const menus = [
-    { 
-      title: "MAIN MENU",
-      items: [
-        { name: "Dashboard", path: "/", icon: <LayoutDashboard size={20} /> },
-        { name: "Port Scanner", path: "/scan", icon: <Radar size={20} /> },
-        { name: "Scan History", path: "/scanhistory", icon: <FileText size={20} /> },
-      ]
-    },
     {
       title: "MASTER DATA",
       items: [
@@ -50,6 +50,113 @@ export default function Sidebar() {
       </div>
 
       <div className="flex-grow-1 overflow-auto py-3">
+        <div className="mb-4">
+          <div className="px-4 mb-2">
+            <small className="text-muted fw-bold" style={{ fontSize: "11px", letterSpacing: "0.5px" }}>
+              MAIN MENU
+            </small>
+          </div>
+          <ul className="list-unstyled mb-0">
+            <li>
+              <div className={`d-flex align-items-center justify-content-between px-4 py-3 text-decoration-none transition-all border-start border-4 ${
+                  isDashboardActive 
+                    ? "bg-primary bg-opacity-10 text-primary border-primary fw-bold" 
+                    : "text-secondary border-transparent hover-bg-light"
+                }`}
+                style={{ cursor: "pointer", transition: "all 0.2s" }}
+              >
+                <NavLink to="/dashboard" className="d-flex align-items-center gap-3 flex-grow-1 text-decoration-none text-inherit" style={{ color: 'inherit' }}>
+                  <div className={isDashboardActive ? "text-primary" : "text-secondary opacity-75"}>
+                    <LayoutDashboard size={20} />
+                  </div>
+                  <span>Dashboard</span>
+                </NavLink>
+                <div onClick={() => setDashboardOpen(!dashboardOpen)} className="p-1">
+                  {dashboardOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </div>
+              </div>
+              <Collapse in={dashboardOpen}>
+                <div>
+                  <ul className="list-unstyled mb-0 bg-light bg-opacity-50">
+                    <li>
+                      <NavLink
+                        to="/dashboard/overview"
+                        className={({isActive}) => `d-flex align-items-center gap-3 px-5 py-2 text-decoration-none transition-all ${
+                          isActive ? "text-primary fw-bold" : "text-secondary hover-text-primary"
+                        }`}
+                      >
+                        <Activity size={16} /> <span style={{fontSize: "14px"}}>Overview</span>
+                      </NavLink>
+                    </li>
+                    <li>
+                      <NavLink
+                        to="/dashboard/severity"
+                        className={({isActive}) => `d-flex align-items-center gap-3 px-5 py-2 text-decoration-none transition-all ${
+                          isActive ? "text-primary fw-bold" : "text-secondary hover-text-primary"
+                        }`}
+                      >
+                        <AlertTriangle size={16} /> <span style={{fontSize: "14px"}}>Severity Bar</span>
+                      </NavLink>
+                    </li>
+                    <li>
+                      <NavLink
+                        to="/dashboard/trend"
+                        className={({isActive}) => `d-flex align-items-center gap-3 px-5 py-2 text-decoration-none transition-all ${
+                          isActive ? "text-primary fw-bold" : "text-secondary hover-text-primary"
+                        }`}
+                      >
+                        <TrendingUp size={16} /> <span style={{fontSize: "14px"}}>Trend</span>
+                      </NavLink>
+                    </li>
+                    <li>
+                      <NavLink
+                        to="/dashboard/branch-health"
+                        className={({isActive}) => `d-flex align-items-center gap-3 px-5 py-2 text-decoration-none transition-all ${
+                          isActive ? "text-primary fw-bold" : "text-secondary hover-text-primary"
+                        }`}
+                      >
+                        <Server size={16} /> <span style={{fontSize: "14px"}}>Branch Health</span>
+                      </NavLink>
+                    </li>
+                  </ul>
+                </div>
+              </Collapse>
+            </li>
+            <li>
+              <NavLink
+                to="/scan"
+                className={({isActive}) => `d-flex align-items-center gap-3 px-4 py-3 text-decoration-none transition-all border-start border-4 ${
+                  isActive 
+                    ? "bg-primary bg-opacity-10 text-primary border-primary fw-bold" 
+                    : "text-secondary border-transparent hover-bg-light"
+                }`}
+                style={{ transition: "all 0.2s" }}
+              >
+                <div className={location.pathname === '/scan' ? "text-primary" : "text-secondary opacity-75"}>
+                  <Radar size={20} />
+                </div>
+                <span>Port Scanner</span>
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/scanhistory"
+                className={({isActive}) => `d-flex align-items-center gap-3 px-4 py-3 text-decoration-none transition-all border-start border-4 ${
+                  isActive 
+                    ? "bg-primary bg-opacity-10 text-primary border-primary fw-bold" 
+                    : "text-secondary border-transparent hover-bg-light"
+                }`}
+                style={{ transition: "all 0.2s" }}
+              >
+                <div className={location.pathname === '/scanhistory' ? "text-primary" : "text-secondary opacity-75"}>
+                  <FileText size={20} />
+                </div>
+                <span>Scan History</span>
+              </NavLink>
+            </li>
+          </ul>
+        </div>
+
         {menus.map((section, index) => (
           <div key={index} className="mb-4">
             <div className="px-4 mb-2">
