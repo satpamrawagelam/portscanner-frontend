@@ -14,6 +14,7 @@ import BranchDetail from './pages/BranchDetail';
 import MasterBranch from './pages/MasterBranch';
 import Setting from './pages/Setting';
 import ScanHistory from './pages/ScanHistory';
+import Report from './pages/Report';
 
 import "react-toastify/dist/ReactToastify.css"
 
@@ -35,6 +36,7 @@ function App() {
           <Route path="masterbranch" element={<MasterBranch />} />
           <Route path="setting" element={<Setting />} />
           <Route path="scanhistory" element={<ScanHistory />} />
+          <Route path="report" element={<Report />} />
         </Route>
       </Routes>
     </BrowserRouter>

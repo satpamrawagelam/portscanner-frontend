@@ -20,7 +20,7 @@ export default function MainLayout() {
         </main>
 
         <footer className="mt-auto py-3 text-center text-muted small">
-            &copy;2026 ExternalExposureChecker 
+            &copy;MI23066 | External Exposure Checker 
         </footer>
 
       </div>

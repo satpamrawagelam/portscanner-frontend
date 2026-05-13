@@ -30,6 +30,12 @@ export default function Sidebar() {
       ]
     },
     {
+      title: "REPORT",
+      items: [
+        { name: "Report", path: "/report", icon: <FileText size={20} /> },
+      ]
+    },
+    {
       title: "SYSTEM",
       items: [
         { name: "Configuration", path: "/setting", icon: <Settings size={20} /> },
