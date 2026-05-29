@@ -173,47 +173,6 @@ export default function ScanHistory() {
         return new Date(dateString).toLocaleDateString('id-ID', options);
     };
 
-    const exportToCsv = async () => {
-        toast.info("Menyiapkan file CSV...");
-        try {
-            const dateParams = buildDateParams(appliedDateStart, appliedDateEnd);
-            const url = `${API}/History/GetHistory?scanType=${activeTab}&page=1&pageSize=10000&search=${encodeURIComponent(debouncedSearch)}${dateParams}`;
-            const res = await fetch(url);
-            const result = await res.json();
-            const dataToExport = result.data || result || [];
-
-            if (!dataToExport || dataToExport.length === 0) {
-                toast.warn("Tidak ada data untuk diexport");
-                return;
-            }
-
-            const headers = ["No,Waktu Scan,Judul Scan,Tipe Scan,Branch Name,IP Address,Open Ports"];
-            const rows = dataToExport.map((item, index) => {
-                const clean = (text) => `"${String(text || "").replace(/"/g, '""')}"`;
-                const dateFormatted = formatDate(item.scanDate);
-                return [
-                    index + 1, clean(dateFormatted), clean(item.scanTitle),
-                    clean(item.scanType || "Manual Scan"), clean(item.branchName),
-                    clean(item.ipAddress), clean(item.openPorts)
-                ].join(",");
-            });
-
-            const csvContent = [headers, ...rows].join("\n");
-            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-            const downloadUrl = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = downloadUrl;
-            link.setAttribute("download", `History_${activeTab}_${new Date().toISOString().slice(0, 10)}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            toast.success(`Berhasil export data ke CSV`);
-        } catch (error) {
-            toast.error("Gagal export CSV");
-        }
-    };
-
     // ── Helper: severity color untuk PDF ──────────────────────────────────────
     const severityColor = (sev) => {
         switch ((sev || '').toLowerCase()) {
@@ -232,7 +191,7 @@ export default function ScanHistory() {
     };
 
     const exportToPdf = async () => {
-        toast.info("Menyiapkan PDF Report...");
+        toast.info("Memulai pembuatan PDF Report di background...");
         try {
             // Periode: pakai applied filter, atau default ke bulan berjalan
             const now = new Date();
@@ -244,257 +203,21 @@ export default function ScanHistory() {
             const end   = appliedDateEnd   || lastDay;
 
             const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : '';
-            const res  = await fetch(
-                `${API}/History/GetReport?dateStart=${start}T00:00:00&dateEnd=${end}T23:59:59&scanType=${activeTab}${searchParam}`
+            
+            const res = await fetch(
+                `${API}/Report/GenerateFilteredReport?dateStart=${start}T00:00:00&dateEnd=${end}T23:59:59&scanType=${activeTab}${searchParam}&type=Custom`,
+                { method: 'POST' }
             );
             const data = await res.json();
 
-            if (!res.ok) throw new Error(data.message || 'Gagal fetch data report');
-
-            const { summary, topBranches, topHosts, topPorts, detailHistory, periodeStart, periodeEnd } = data;
-
-            const formatPortsForPdf = (portsStr) => {
-                if (!portsStr || portsStr === '-') return '-';
-                return portsStr.split(',')
-                    .map(s => {
-                        const [port] = s.split('|');
-                        return port ? port.trim() : '';
-                    })
-                    .filter(p => p)
-                    .join(', ');
-            };
-
-            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-            const W   = doc.internal.pageSize.getWidth();
-            const M   = 14;
-            let   y   = M;
-
-            const fmtDate = (d) => new Date(d).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
-
-            // ── HEADER BAND ────────────────────────────────────────────────────
-            const hasSearch  = !!debouncedSearch;
-            const headerH    = hasSearch ? 28 : 22;
-            doc.setFillColor(15, 23, 42);
-            doc.rect(0, 0, W, headerH, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(14); doc.setFont('helvetica','bold');
-            doc.text('EXTERNAL EXPOSURE CHECKER REPORT', M, 10);
-            doc.setFontSize(8); doc.setFont('helvetica','normal');
-            const scanTypeLabel = activeTab === 'manual' ? 'Manual Scan' : activeTab === 'scheduled' ? 'Scheduled Scan' : 'All Type';
-            doc.text(`Periode: ${fmtDate(periodeStart+' 00:00')}  s/d  ${fmtDate(periodeEnd+' 00:00')}   |   Tipe: ${scanTypeLabel}`, M, 16);
-            if (hasSearch) {
-                doc.setFontSize(7.5); doc.setTextColor(180, 200, 255);
-                doc.text(`Search Filter: "${debouncedSearch}"`, M, 22);
-                doc.setTextColor(255, 255, 255);
+            if (res.ok && data.success) {
+                toast.success("Laporan sedang dibuat di background! Silakan cek menu 'Report' beberapa saat lagi.");
+            } else {
+                toast.error("Gagal memproses laporan: " + (data.message || ''));
             }
-            doc.setFontSize(8);
-            doc.text(`Generated: ${new Date().toLocaleString('id-ID')}`, W - M, 16, { align: 'right' });
-            y = headerH + 6;
-
-            // ── SUMMARY CARDS ──────────────────────────────────────────────────
-            const cards = [
-                { label: 'Total Scan',              value: summary.totalScan,              color: [15,23,42] },
-                { label: 'Total Open Port Findings',value: summary.totalOpenPortFindings,  color: [220,53,69] },
-                { label: 'Host with Open Port',   value: summary.totalHostWithOpenPort,  color: [253,126,20] },
-                { label: 'HIGH Severity Port Exposed',      value: summary.highSeverityPortCount,  color: [180,50,10] },
-                { label: 'MEDIUM Severity Port Exposed',    value: summary.mediumSeverityPortCount,color: [133,100,4] },
-            ];
-            const cardW = (W - 2*M - 4*4) / 5;
-            cards.forEach((c, i) => {
-                const cx = M + i * (cardW + 4);
-                doc.setFillColor(...c.color);
-                doc.roundedRect(cx, y, cardW, 18, 2, 2, 'F');
-                doc.setTextColor(255,255,255);
-                doc.setFontSize(18); doc.setFont('helvetica','bold');
-                doc.text(String(c.value), cx + cardW/2, y + 10, { align: 'center' });
-                doc.setFontSize(7);  doc.setFont('helvetica','normal');
-                doc.text(c.label, cx + cardW/2, y + 16, { align: 'center' });
-            });
-            y += 24;
-
-            // ── TOP BRANCHES ───────────────────────────────────────────────────
-            doc.setTextColor(15,23,42);
-            doc.setFontSize(9); doc.setFont('helvetica','bold');
-            doc.text('Top 5 Zones with High Risk Exposure', M, y); y += 2;
-            autoTable(doc, {
-                startY: y,
-                head: [['#','Zone Name','Open Port Findings','Risk Score','Level']],
-                body: (topBranches||[]).map((b,i) => [
-                    i+1, b.branchName, b.openPortCount, b.riskScore,
-                    getRiskLabel(b.riskScore)
-                ]),
-                theme: 'grid',
-                headStyles: { fillColor: [15,23,42], fontSize: 8, halign:'left'},
-                bodyStyles: { fontSize: 8 },
-                columnStyles: { 0:{halign:'center',cellWidth:8}, 2:{halign:'center'}, 3:{halign:'center'}, 4:{halign:'center'} },
-                margin: { left: M, right: M },
-                tableWidth: (W - 2*M) / 2 - 3,
-                didParseCell: (d) => {
-                    if (d.section==='body' && d.column.index===4) {
-                        const row = topBranches[d.row.index];
-                        if (row) d.cell.styles.textColor = severityColor(getRiskLabel(row.riskScore));
-                    }
-                }
-            });
-            const afterBranch = doc.lastAutoTable.finalY;
-
-            // ── TOP HOSTS (kolom kanan, sejajar branches) ──────────────────────
-            const col2X = M + (W - 2*M) / 2 + 3;
-            doc.setTextColor(15,23,42);
-            doc.setFontSize(9); doc.setFont('helvetica','bold');
-            doc.text('Top 5 IP Address with High Risk Exposure', col2X, y); 
-            autoTable(doc, {
-                startY: y + 2,
-                head: [['#','IP Address','Zone Name','Open Ports','Risk Score']],
-                body: (topHosts||[]).map((h,i) => [
-                    i+1, h.ipAddress, h.branchName, h.openPortCount, h.riskScore
-                ]),
-                theme: 'grid',
-                headStyles: { fillColor: [44,62,80], fontSize: 8 },
-                bodyStyles: { fontSize: 8 },
-                columnStyles: { 0:{halign:'center',cellWidth:8}, 3:{halign:'center'}, 4:{halign:'center'} },
-                margin: { left: col2X, right: M },
-                tableWidth: (W - 2*M) / 2 - 3,
-            });
-            const afterHost = doc.lastAutoTable.finalY;
-
-            y = Math.max(afterBranch, afterHost) + 6;
-
-            // ── TOP PORTS ──────────────────────────────────────────────────────
-            doc.setTextColor(15,23,42);
-            doc.setFontSize(9); doc.setFont('helvetica','bold');
-            doc.text('Top 5 Port with High Risk Exposure', M, y); y += 2;
-            autoTable(doc, {
-                startY: y,
-                head: [['#','Port','Description','Severity','Frequency']],
-                body: (topPorts||[]).map((p,i) => [
-                    i+1, p.portNumber, p.portDesc, p.severity, p.openCount
-                ]),
-                theme: 'grid',
-                headStyles: { fillColor: [220,53,69], fontSize: 8 },
-                bodyStyles: { fontSize: 8 },
-                columnStyles: { 0:{halign:'center',cellWidth:8}, 1:{halign:'center'}, 3:{halign:'center'}, 4:{halign:'center'} },
-                margin: { left: M, right: W/2 },
-                tableWidth: (W - 2*M) / 2 - 3,
-                didParseCell: (d) => {
-                    if (d.section === 'body') {
-                        const row = topPorts[d.row.index];
-                        if (row) {
-                            // Warnai seluruh baris sesuai severity port tersebut
-                            d.cell.styles.textColor = severityColor(row.severity);
-                            // Kolom Severity → bold untuk penekanan
-                            if (d.column.index === 3) {
-                                d.cell.styles.fontStyle = 'bold';
-                            }
-                        }
-                    }
-                }
-            });
-            y = doc.lastAutoTable.finalY + 8;
-
-            // ── DETAIL HISTORY ───────────────────────
-            if (y > doc.internal.pageSize.getHeight() - 40) { doc.addPage(); y = M; }
-            doc.setTextColor(15,23,42);
-            doc.setFontSize(9); doc.setFont('helvetica','bold');
-            doc.text('Scan History Detail', M, y); y += 2;
-            autoTable(doc, {
-                startY: y,
-                head: [['No','Scan Date','Scan Title','Scan Type','Zone','IP Address','Status Host','Open Ports']],
-                body: (detailHistory||[]).map((item, i) => [
-                    i+1,
-                    new Date(item.scanDate).toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),
-                    item.scanTitle,
-                    item.scanType,
-                    item.branchName,
-                    item.ipAddress,
-                    item.hostStatus ? 'UP' : 'DOWN',
-                    formatPortsForPdf(item.openPorts || '-')
-                ]),
-                theme: 'striped',
-                headStyles: { fillColor: [15,23,42], fontSize: 7.5 },
-                bodyStyles: { fontSize: 7 },
-                columnStyles: {
-                    0:{halign:'center',cellWidth:8},
-                    1:{cellWidth:32},
-                    3:{halign:'center',cellWidth:22},
-                    6:{halign:'center',cellWidth:16},
-                },
-                margin: { left: M, right: M },
-                didParseCell: (d) => {
-                    if (d.section==='body' && d.column.index===6) {
-                        d.cell.styles.textColor = d.cell.raw==='UP' ? [25,135,84] : [108,117,125];
-                        d.cell.styles.fontStyle = 'bold';
-                    }
-                    // Open Ports column — hide default text to redraw custom colors in didDrawCell
-                    if (d.section==='body' && d.column.index===7 && d.cell.raw !== '-') {
-                        const isStriped = d.row.index % 2 !== 0;
-                        d.cell.styles.textColor = isStriped ? [248,249,250] : [255,255,255]; // Match default stripe colors
-                        d.cell.styles.fontStyle = 'bold';
-                    }
-                },
-                didDrawCell: (d) => {
-                    // Custom draw Open Ports column to colorize each port number individually
-                    if (d.section==='body' && d.column.index===7 && d.cell.raw !== '-') {
-                        const item = detailHistory[d.row.index];
-                        if (!item || !item.openPorts) return;
-                        
-                        // Map portNumber -> severity
-                        const portSevMap = {};
-                        item.openPorts.split(',').forEach(p => {
-                            const [num, sev] = p.split('|');
-                            if (num) portSevMap[num.trim()] = (sev || 'low').trim().toLowerCase();
-                        });
-
-                        const padL = d.cell.styles.cellPadding?.left || d.cell.styles.cellPadding || 2;
-                        const padT = d.cell.styles.cellPadding?.top || d.cell.styles.cellPadding || 2;
-                        
-                        doc.setFontSize(7);
-                        doc.setFont('helvetica', 'bold');
-
-                        // d.cell.text contains the auto-wrapped array of strings!
-                        const lines = Array.isArray(d.cell.text) ? d.cell.text : [d.cell.text];
-                        let cursorY = d.cell.y + padT + 2.2; // Approximate baseline for 7pt font
-                        
-                        lines.forEach(line => {
-                            let cursorX = d.cell.x + padL;
-                            // Split line keeping the numbers isolated (e.g. "22, 80," -> ["", "22", ", ", "80", ","] )
-                            const tokens = line.split(/(\d+)/); 
-                            
-                            tokens.forEach(token => {
-                                if (!token) return;
-                                if (/^\d+$/.test(token)) {
-                                    const severity = portSevMap[token] || 'low';
-                                    let color = [108, 117, 125];
-                                    if (severity === 'high') color = [220, 53, 69];
-                                    else if (severity === 'medium') color = [253, 126, 20];
-                                    else if (severity === 'low') color = [25, 135, 84];
-                                    
-                                    doc.setTextColor(color[0], color[1], color[2]);
-                                } else {
-                                    // Comma / spaces
-                                    doc.setTextColor(150, 150, 150);
-                                }
-                                doc.text(token, cursorX, cursorY);
-                                cursorX += doc.getTextWidth(token);
-                            });
-                            
-                            cursorY += (d.cell.styles.fontSize * 0.352777) + 0.5; // Approx line height increment
-                        });
-                    }
-                },
-                didDrawPage: (d) => {
-                    // Footer setiap halaman
-                    doc.setFontSize(7); doc.setTextColor(150,150,150);
-                    doc.text(`Halaman ${d.pageNumber}`, W/2, doc.internal.pageSize.getHeight()-5, { align:'center' });
-                    doc.text('External Exposure Checker — Security Report', M, doc.internal.pageSize.getHeight()-5);
-                }
-            });
-
-            doc.save(`Laporan_Scan_${start}_sd_${end}.pdf`);
-            toast.success('PDF berhasil diunduh!');
         } catch (err) {
             console.error(err);
-            toast.error('Gagal generate PDF: ' + (err.message || ''));
+            toast.error('Gagal memproses ekspor PDF: ' + (err.message || ''));
         }
     };
 
@@ -541,9 +264,6 @@ export default function ScanHistory() {
                     <div className="d-flex gap-2">
                         <Button variant="danger" size="sm" className="d-flex align-items-center gap-2 fw-bold px-3 text-white" onClick={exportToPdf}>
                             <FileText size={16} /> Export PDF
-                        </Button>
-                        <Button variant="success" size="sm" className="d-flex align-items-center gap-2 fw-bold px-3 text-white" onClick={exportToCsv}>
-                            <FileText size={16} /> Export CSV
                         </Button>
                     </div>
                 </div>

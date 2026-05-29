@@ -163,24 +163,38 @@ export default function Report() {
                                             {formatDate(r.createdAt)}
                                         </td>
                                         <td className="px-4 py-3 text-end">
-                                            <div className="d-flex justify-content-end gap-2">
-                                                <a 
-                                                    href={`${API.replace('/api', '')}${r.filePath}`} 
-                                                    target="_blank" 
-                                                    rel="noreferrer"
-                                                    className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
-                                                >
-                                                    <Download size={14} /> Download
-                                                </a>
-                                                <Button 
-                                                    variant="outline-danger" 
-                                                    size="sm" 
-                                                    onClick={() => handleDelete(r.id)}
-                                                    className="d-flex align-items-center"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </Button>
-                                            </div>
+                                             {r.filePath === 'generating' ? (
+                                                 <Badge bg="warning" className="px-2 py-1 text-dark">
+                                                     Sedang Di-generate...
+                                                 </Badge>
+                                             ) : (
+                                                 <div className="d-flex justify-content-end gap-2">
+                                                     <a 
+                                                         href={`${API.replace('/api', '')}${r.filePath}`} 
+                                                         target="_blank" 
+                                                         rel="noreferrer"
+                                                         className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                                                     >
+                                                         <Download size={14} /> PDF
+                                                     </a>
+                                                     <a 
+                                                         href={`${API.replace('/api', '')}${r.filePath.replace(/\.pdf$/i, '.csv')}`} 
+                                                         target="_blank" 
+                                                         rel="noreferrer"
+                                                         className="btn btn-sm btn-outline-success d-flex align-items-center gap-1"
+                                                     >
+                                                         <Download size={14} /> CSV
+                                                     </a>
+                                                     <Button 
+                                                         variant="outline-danger" 
+                                                         size="sm" 
+                                                         onClick={() => handleDelete(r.id)}
+                                                         className="d-flex align-items-center"
+                                                     >
+                                                         <Trash2 size={14} />
+                                                     </Button>
+                                                 </div>
+                                             )}
                                         </td>
                                     </tr>
                                 ))
