@@ -178,13 +178,13 @@ export default function Report() {
                                                          <Download size={14} /> PDF
                                                      </a>
                                                      <a 
-                                                         href={`${API.replace('/api', '')}${r.filePath.replace(/\.pdf$/i, '.csv')}`} 
-                                                         target="_blank" 
-                                                         rel="noreferrer"
-                                                         className="btn btn-sm btn-outline-success d-flex align-items-center gap-1"
-                                                     >
-                                                         <Download size={14} /> CSV
-                                                     </a>
+                                                          href={`${API.replace('/api', '')}${r.filePath.replace(/\.pdf$/i, '.xlsx')}`} 
+                                                          target="_blank" 
+                                                          rel="noreferrer"
+                                                          className="btn btn-sm btn-outline-success d-flex align-items-center gap-1"
+                                                      >
+                                                          <Download size={14} /> Excel
+                                                      </a>
                                                      <Button 
                                                          variant="outline-danger" 
                                                          size="sm" 
