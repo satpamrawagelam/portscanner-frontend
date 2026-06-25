@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Row, Col, Spinner, Card } from "react-bootstrap";
 import { Activity, ShieldCheck, ShieldAlert, LayoutDashboard, Server, CheckCircle, AlertTriangle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import API from "../pages/API";
 
 export default function DashboardOverview({ hideTitle = false }) {
+    const navigate = useNavigate();
     const [overviewPort, setOverviewPort] = useState(null);
     const [overviewHost, setOverviewHost] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -29,7 +31,7 @@ export default function DashboardOverview({ hideTitle = false }) {
         return (
             <div className="text-center py-5">
                 <Spinner animation="border" variant="primary" />
-                <p className="mt-2 text-muted">Memuat data overview...</p>
+                <p className="mt-2 text-muted">Loading overview data...</p>
             </div>
         );
     }
@@ -43,7 +45,7 @@ export default function DashboardOverview({ hideTitle = false }) {
                     </div>
                     <div>
                         <h3 className="fw-bold text-dark mb-0">Dashboard Overview</h3>
-                        <p className="text-muted mb-0 small">Monitoring status keamanan jaringan realtime.</p>
+                        <p className="text-muted mb-0 small">Real-time network security status monitoring.</p>
                     </div>
                 </div>
             )}
@@ -51,38 +53,49 @@ export default function DashboardOverview({ hideTitle = false }) {
             <h5 className="fw-bold text-dark mb-3">Host Status Overview</h5>
             <Row className="g-4 mb-4">
                 <Col md={4}>
-                    <StatusCard title="VULNERABLE HOSTS" value={overviewHost?.vulnHost || 0} subtitle="Host dengan open ports" color="danger" icon={<AlertTriangle size={32} />} />
+                    <StatusCard 
+                        title="VULNERABLE HOSTS" 
+                        value={overviewHost?.vulnHost || 0} 
+                        subtitle="Hosts with open ports" 
+                        color="danger" 
+                        icon={<AlertTriangle size={32} />} 
+                        onClick={() => navigate("/vulnerable-hosts")}
+                    />
                 </Col>
                 <Col md={4}>
-                    <StatusCard title="SAFE HOSTS" value={overviewHost?.safeHost || 0} subtitle="Host tanpa open ports" color="success" icon={<CheckCircle size={32} />} />
+                    <StatusCard title="SAFE HOSTS" value={overviewHost?.safeHost || 0} subtitle="Hosts without open ports" color="success" icon={<CheckCircle size={32} />} />
                 </Col>
                 <Col md={4}>
-                    <StatusCard title="TOTAL HOSTS SCANNED" value={overviewHost?.total || 0} subtitle="Total host terdeteksi aktif" color="primary" icon={<Server size={32} />} />
+                    <StatusCard title="TOTAL HOSTS SCANNED" value={overviewHost?.total || 0} subtitle="Total hosts detected active" color="primary" icon={<Server size={32} />} />
                 </Col>
             </Row>
 
             <h5 className="fw-bold text-dark mb-3">Port Status Overview</h5>
             <Row className="g-4 mb-4">
                 <Col md={4}>
-                    <StatusCard title="TOTAL OPEN PORTS" value={overviewPort?.open || 0} subtitle="Potensi celah keamanan" color="danger" icon={<ShieldAlert size={32} />} />
+                    <StatusCard title="TOTAL OPEN PORTS" value={overviewPort?.open || 0} subtitle="Potential security vulnerabilities" color="danger" icon={<ShieldAlert size={32} />} />
                 </Col>
                 <Col md={4}>
-                    <StatusCard title="TOTAL CLOSED PORTS" value={overviewPort?.closed || 0} subtitle="Port aman terkunci" color="success" icon={<ShieldCheck size={32} />} />
+                    <StatusCard title="TOTAL CLOSED PORTS" value={overviewPort?.closed || 0} subtitle="Secure locked ports" color="success" icon={<ShieldCheck size={32} />} />
                 </Col>
                 <Col md={4}>
-                    <StatusCard title="TOTAL PORT SCANNED" value={overviewPort?.total || 0} subtitle="Total aktivitas scan port" color="primary" icon={<Activity size={32} />} />
+                    <StatusCard title="TOTAL PORT SCANNED" value={overviewPort?.total || 0} subtitle="Total port scanning activity" color="primary" icon={<Activity size={32} />} />
                 </Col>
             </Row>
         </div>
     );
 }
 
-function StatusCard({ title, value, subtitle, color, icon }) {
+function StatusCard({ title, value, subtitle, color, icon, onClick }) {
     const bgSoft = `bg-${color} bg-opacity-10`;
     const textColor = `text-${color}`;
     const borderColor = `border-${color}`;
     return (
-        <Card className={`border-0 shadow-sm h-100 position-relative overflow-hidden`}>
+        <Card 
+            className={`border-0 shadow-sm h-100 position-relative overflow-hidden ${onClick ? 'hover-shadow transition-all' : ''}`}
+            onClick={onClick}
+            style={{ cursor: onClick ? 'pointer' : 'default' }}
+        >
             <div className={`position-absolute top-0 start-0 bottom-0 ${borderColor}`} style={{ borderLeftWidth: '5px', borderLeftStyle: 'solid' }}></div>
             <Card.Body className="d-flex align-items-center p-4">
                 <div className={`p-3 rounded-circle me-4 ${bgSoft} ${textColor}`}>{icon}</div>

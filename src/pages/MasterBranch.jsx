@@ -30,7 +30,7 @@ export default function MasterBranch() {
       const data = await res.json();
       setBranches(data);
     } catch (err) {
-      toast.error("Gagal memuat data branch");
+      toast.error("Failed to load branch data");
     } finally {
       setLoading(false);
     }
@@ -60,27 +60,29 @@ export default function MasterBranch() {
   };
 
   const handleSave = async () => {
-    if (!formName) return toast.warning("Nama Branch wajib diisi");
-    if(formName.trim() == "") return toast.warning("Nama Branch tidak boleh kosong")
-    if (formCidr.trim() == "") return toast.warning("CIDR tidak valid");
+    if (!formName) return toast.warning("Branch Name is required");
+    if(formName.trim() == "") return toast.warning("Branch Name cannot be empty")
+    if (formCidr.trim() == "") return toast.warning("Invalid CIDR");
 
     if (formCidr && formCidr.trim() !== "") {
         // Regex untuk format CIDR IPv4 (x.x.x.x/xx)
         // ^(\d{1,3}\.){3}      -> 3 blok angka diikuti titik (misal 192.168.1.)
-        // \d{1,3}              -> 1 blok angka terakhir (misal 0)
-        // \/                   -> Garis miring
-        // (3[0-2]|[1-2]?[0-9]) -> Angka subnet 0-32
+        // Regex for IPv4 CIDR format (x.x.x.x/xx)
+        // ^(\d{1,3}\.){3}      -> 3 blocks of numbers followed by a dot (e.g., 192.168.1.)
+        // \d{1,3}              -> last block of numbers (e.g., 0)
+        // \/                   -> slash
+        // (3[0-2]|[1-2]?[0-9]) -> subnet mask 0-32
         const cidrRegex = /^(\d{1,3}\.){3}\d{1,3}\/(3[0-2]|[1-2]?[0-9])$/;
 
         if (!cidrRegex.test(formCidr)) {
-            return toast.warn("Format CIDR salah! Contoh: 192.168.1.0/24");
+            return toast.warn("Invalid CIDR format! Example: 192.168.1.0/24");
         }
 
-        // Validasi tambahan: Pastikan setiap blok IP (octet) <= 255
+        // Additional validation: Ensure each IP block (octet) <= 255
         const ipPart = formCidr.split('/')[0];
         const octets = ipPart.split('.');
         if (octets.some(octet => parseInt(octet) > 255)) {
-            return toast.warn("IP Address tidak valid (Angka melebihi 255)!");
+            return toast.warn("Invalid IP Address (Number exceeds 255)!");
         }
     }
 
@@ -99,11 +101,11 @@ export default function MasterBranch() {
 
       if (!res.ok) throw new Error();
 
-      toast.success(isEditing ? "Branch berhasil diupdate" : "Branch berhasil ditambahkan");
+      toast.success(isEditing ? "Branch successfully updated" : "Branch successfully added");
       setShowModal(false);
       loadData();
     } catch {
-      toast.error("Gagal menyimpan data");
+      toast.error("Failed to save data");
     } finally {
       setSaving(false);
     }
@@ -113,10 +115,10 @@ export default function MasterBranch() {
     try {
         const res = await fetch(`${API}/Branch/Delete/${id}`, { method: 'POST' });
         if(!res.ok) throw new Error();
-        toast.success("Branch dihapus");
+        toast.success("Branch deleted");
         loadData();
     } catch {
-        toast.error("Gagal menghapus branch");
+        toast.error("Failed to delete branch");
     }
   };
 
@@ -237,10 +239,10 @@ export default function MasterBranch() {
            <h3 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
               <Network className="text-primary"/> Master Branch
            </h3>
-           <p className="text-muted mb-0 small">Kelola data cabang dan segmentasi IP.</p>
+           <p className="text-muted mb-0 small">Manage branch data and IP segmentation.</p>
         </div>
         <Button onClick={handleOpenAdd} className="d-flex align-items-center gap-2 shadow-sm fw-bold">
-            <Plus size={18}/> Tambah Branch
+            <Plus size={18}/> Add Branch
         </Button>
       </div>
 
@@ -251,7 +253,7 @@ export default function MasterBranch() {
                 <InputGroup style={{ maxWidth: '300px' }}>
                     <InputGroup.Text className="bg-light border-end-0"><Search size={16} className="text-muted"/></InputGroup.Text>
                     <Form.Control 
-                        placeholder="Cari branch atau CIDR..." 
+                        placeholder="Search branch or CIDR..." 
                         className="border-start-0 bg-light ps-0"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -268,9 +270,9 @@ export default function MasterBranch() {
                         setCurrentPage(1);
                     }}
                 >
-                    <option value="5">5 Data</option>
-                    <option value="10">10 Data</option>
-                    <option value="20">20 Data</option>
+                    <option value="5">5 items</option>
+                    <option value="10">10 items</option>
+                    <option value="20">20 items</option>
                 </Form.Select>
             </div>
         </Card.Header>
@@ -280,20 +282,20 @@ export default function MasterBranch() {
                 <thead className="bg-light text-secondary small text-uppercase">
                     <tr>
                         <th className="ps-4" style={{width: '50px'}}>No</th>
-                        <th>Nama Branch</th>
+                        <th>Branch Name</th>
                         <th>CIDR Network</th>
-                        <th className="text-end pe-4" style={{width: '150px'}}>Aksi</th>
+                        <th className="text-end pe-4" style={{width: '150px'}}>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {loading ? (
                         <tr><td colSpan="4" className="text-center py-5"><Spinner size="sm"/> Loading...</td></tr>
                     ) : currentItems.length === 0 ? (
-                        <tr><td colSpan="4" className="text-center py-5 text-muted">Data tidak ditemukan.</td></tr>
+                        <tr><td colSpan="4" className="text-center py-5 text-muted">No data found.</td></tr>
                     ) : (
                         currentItems.map((b, i) => (
                             <tr key={b.branch_id}>
-                                {/* Rumus No: Index Awal + Index Loop + 1 */}
+                                {/* Formula No: Initial Index + Loop Index + 1 */}
                                 <td className="ps-4 text-muted small">{indexOfFirstItem + i + 1}</td>
                                 <td className="fw-bold text-dark">{b.branch_name}</td>
                                 <td>
@@ -310,12 +312,12 @@ export default function MasterBranch() {
                                         </Button>
                                         <Button size="sm" variant="light" className="text-danger border" 
                                         onClick={() => Swal.fire({
-                                            title: "Hapus Branch?",
-                                            text: "Data tidak bisa dikembalikan!",
+                                            title: "Delete Branch?",
+                                            text: "This action cannot be undone!",
                                             icon: "warning",
                                             showCancelButton: true,
                                             confirmButtonColor: "#d33",
-                                            confirmButtonText: "Ya, Hapus!"
+                                            confirmButtonText: "Yes, Delete!"
                                         }).then((res) => {
                                             if (res.isConfirmed) handleDelete(b.branch_id);
                                         })}>
@@ -330,13 +332,12 @@ export default function MasterBranch() {
             </Table>
         </div>
 
-        {/* FOOTER & PAGINATION (UPDATED) */}
+        {/* FOOTER & PAGINATION */}
         <Card.Footer className="bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div className="text-muted small">
-                Menampilkan <strong>{filteredData.length > 0 ? indexOfFirstItem + 1 : 0}</strong> - <strong>{Math.min(indexOfLastItem, filteredData.length)}</strong> dari <strong>{filteredData.length}</strong> data
+                Showing <strong>{filteredData.length > 0 ? indexOfFirstItem + 1 : 0}</strong> - <strong>{Math.min(indexOfLastItem, filteredData.length)}</strong> of <strong>{filteredData.length}</strong> items
             </div>
             
-            {/* Logic Tombol Pagination Baru */}
             {renderPagination(currentPage, setCurrentPage, totalPages)}
         </Card.Footer>
       </Card>
@@ -346,17 +347,17 @@ export default function MasterBranch() {
         <Modal.Header closeButton className="border-0 pb-0">
             <Modal.Title className="fw-bold d-flex align-items-center gap-2">
                 {isEditing ? <Edit2 size={20} className="text-warning"/> : <Plus size={20} className="text-primary"/>}
-                {isEditing ? "Edit Branch" : "Tambah Branch Baru"}
+                {isEditing ? "Edit Branch" : "Add New Branch"}
             </Modal.Title>
         </Modal.Header>
         <Modal.Body className="pt-4">
             <Form>
                 <Form.Group className="mb-3">
-                    <Form.Label className="small fw-bold text-muted">Nama Cabang <span className="text-danger">*</span></Form.Label>
+                    <Form.Label className="small fw-bold text-muted">Branch Name <span className="text-danger">*</span></Form.Label>
                     <InputGroup>
                         <InputGroup.Text className="bg-light"><Network size={16}/></InputGroup.Text>
                         <Form.Control 
-                            placeholder="Contoh: Kantor Pusat, Cabang Surabaya"
+                            placeholder="Example: Head Office, Surabaya Branch"
                             value={formName}
                             onChange={(e) => setFormName(e.target.value)}
                             autoFocus
@@ -368,21 +369,21 @@ export default function MasterBranch() {
                     <InputGroup>
                         <InputGroup.Text className="bg-light"><Globe size={16}/></InputGroup.Text>
                         <Form.Control 
-                            placeholder="Contoh: 192.168.1.0/24"
+                            placeholder="Example: 192.168.1.0/24"
                             value={formCidr}
                             onChange={(e) => setFormCidr(e.target.value)}
                         />
                     </InputGroup>
                     <Form.Text className="text-muted small">
-                        Opsional. Digunakan untuk referensi segmentasi jaringan.
+                        CIDR is used for network segmentation reference.
                     </Form.Text>
                 </Form.Group>
             </Form>
         </Modal.Body>
         <Modal.Footer className="border-0 pt-0">
-            <Button variant="light" onClick={() => setShowModal(false)}>Batal</Button>
+            <Button variant="light" onClick={() => setShowModal(false)}>Cancel</Button>
             <Button variant="primary" onClick={handleSave} disabled={saving} className="fw-bold px-4">
-                {saving ? <Spinner size="sm" animation="border"/> : <><Save size={16} className="me-2"/> Simpan</>}
+                {saving ? <Spinner size="sm" animation="border"/> : <><Save size={16} className="me-2"/> Save</>}
             </Button>
         </Modal.Footer>
       </Modal>

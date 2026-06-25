@@ -13,18 +13,16 @@ export default function BranchDetail() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ==========================================
-  // STATE UNTUK MODAL WHITELIST
-  // ==========================================
   const [showModal, setShowModal] = useState(false);
   const [selectedIp, setSelectedIp] = useState("");
   const [whitelistPortsList, setWhitelistPortsList] = useState([]); 
   
-  // State khusus untuk Dropdown Search
   const [portSearch, setPortSearch] = useState("");
   const [availablePorts, setAvailablePorts] = useState([]);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [severityFilter, setSeverityFilter] = useState("all");
+  const [ipSearch, setIpSearch] = useState("");
 
   useEffect(() => {
     fetchBranchDetail();
@@ -35,7 +33,7 @@ export default function BranchDetail() {
     setLoading(true);
     fetch(`${API}/Dashboard/GetBranchDetail/${id}`)
       .then(async (res) => {
-        if (!res.ok) throw new Error("Gagal mengambil data");
+        if (!res.ok) throw new Error("Failed to retrieve data");
         return res.json();
       })
       .then((fetchedData) => {
@@ -87,9 +85,9 @@ export default function BranchDetail() {
           if (!whitelistPortsList.includes(parsedPort)) {
               setWhitelistPortsList([...whitelistPortsList, parsedPort]);
           } else {
-              toast.info(`Port ${parsedPort} sudah ada di daftar Whitelist.`);
+              toast.info(`Port ${parsedPort} already exists in the Whitelist.`);
           }
-          setPortSearch(""); // Bersihkan form search setelah nambah
+          setPortSearch("");
       }
   };
 
@@ -112,11 +110,11 @@ export default function BranchDetail() {
       })
       .then(res => res.json())
       .then(response => {
-          toast.success(`Daftar Whitelist untuk IP ${selectedIp} berhasil disimpan!`);
+          toast.success(`Whitelist list for IP ${selectedIp} successfully saved!`);
           setShowModal(false);
           fetchBranchDetail(); 
       })
-      .catch(err => toast.error("Gagal menyimpan whitelist!"))
+      .catch(err => toast.error("Failed to save whitelist!"))
       .finally(() => setIsSubmitting(false));
   };
 
@@ -126,7 +124,19 @@ export default function BranchDetail() {
   );
 
   if (loading) return <div className="text-center py-5"><Spinner animation="border" /></div>;
-  if (!data) return <div className="text-center py-5"><h4 className="text-muted">Data tidak ditemukan.</h4></div>;
+  if (!data) return <div className="text-center py-5"><h4 className="text-muted">Data not found.</h4></div>;
+
+  const filteredResults = (data.results || []).filter((ipResult) => {
+      const matchesIp = ipResult.ip.toLowerCase().includes(ipSearch.toLowerCase());
+      if (severityFilter === "all") {
+          return matchesIp;
+      } else {
+          const hasMatchingOpenPort = ipResult.ports.some(p => 
+              p.status && p.severity?.toLowerCase() === severityFilter.toLowerCase()
+          );
+          return matchesIp && hasMatchingOpenPort;
+      }
+  });
 
   return (
     <div className="animate__animated animate__fadeIn">
@@ -141,7 +151,10 @@ export default function BranchDetail() {
                 <h3 className="fw-bold text-dark mb-0">{data.branchName}</h3>
                 <div className="text-muted small d-flex align-items-center gap-2">
                     <Activity size={14}/> Monitoring Status
-                    <Badge bg="secondary" className="rounded-pill ms-1">{data.totalHost} Host Terdaftar</Badge>
+                    <Badge bg="secondary" className="rounded-pill ms-1">{data.totalHost} Hosts Registered</Badge>
+                    {severityFilter !== "all" && (
+                        <Badge bg="danger" className="rounded-pill ms-1">{filteredResults.length} Matching Hosts</Badge>
+                    )}
                 </div>
              </div>
         </div>
@@ -150,98 +163,140 @@ export default function BranchDetail() {
         </h3>
       </div>
 
+      {/* Filter and Search Bar */}
+      <Card className="border-0 shadow-sm mb-4">
+        <Card.Body className="p-3">
+          <Row className="g-3 align-items-center">
+            <Col md={8}>
+              <Form.Control
+                type="text"
+                placeholder="Search IP Address..."
+                value={ipSearch}
+                onChange={(e) => setIpSearch(e.target.value)}
+                style={{ borderRadius: '8px' }}
+              />
+            </Col>
+            <Col md={4}>
+              <Form.Select
+                value={severityFilter}
+                onChange={(e) => setSeverityFilter(e.target.value)}
+                style={{ borderRadius: '8px' }}
+              >
+                <option value="all">All Hosts</option>
+                <option value="high">Open High Severity</option>
+                <option value="medium">Open Medium Severity</option>
+                <option value="low">Open Low Severity</option>
+                <option value="info">Open Info Severity</option>
+              </Form.Select>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
       <div className="row g-4">
-        {data.results.map((ipResult) => {
-            const validPorts = ipResult.ports.filter(p => p.port !== 0 && p.port !== null);
-            const openCount = validPorts.filter(p => p.status).length;
-            const isVulnerable = openCount > 0;
-            const isAlive = ipResult.hostStatus;
+        {filteredResults.length === 0 ? (
+            <div className="col-12 text-center py-5 text-muted">
+                <ShieldCheck size={48} className="text-success mb-3" />
+                <h5 className="fw-bold">No Hosts Match Your Filters</h5>
+                <p className="small mb-0">Try adjusting your search query or severity filter.</p>
+            </div>
+        ) : (
+            filteredResults.map((ipResult) => {
+                const validPorts = ipResult.ports.filter(p => p.port !== 0 && p.port !== null);
+                const openCount = validPorts.filter(p => p.status).length;
+                const isVulnerable = openCount > 0;
+                const isAlive = ipResult.hostStatus;
+                const displayedPorts = validPorts.filter(p => {
+                    if (severityFilter === "all") return true;
+                    return p.status && p.severity?.toLowerCase() === severityFilter.toLowerCase();
+                });
 
-            return (
-                <div key={ipResult.ip} className="col-lg-6 col-xl-6">
-                    <Card className={`card-enterprise border-0 shadow-sm h-100 ${isVulnerable ? 'border-start border-danger border-4' : 'border-start border-success border-4'}`}>
-                        <Card.Header className="bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-                            <div className="d-flex align-items-center gap-2">
-                                <Globe size={18} className="text-secondary"/>
-                                <span className="fw-bold fs-5 text-dark">{ipResult.ip}</span>
-                                
-                                <Button 
-                                    variant="outline-secondary" 
-                                    size="sm" 
-                                    className="ms-2 py-0 px-2 d-flex align-items-center gap-1 border-dashed"
-                                    onClick={() => handleOpenWhitelistModal(ipResult)}
-                                    title="Kelola Whitelist IP ini"
-                                >
-                                    <Shield size={12}/> <span style={{fontSize: '10px'}} className="fw-bold">WHITELIST</span>
-                                </Button>
-                            </div>
-
-                            <div className="d-flex align-items-center gap-2">
-                                {isAlive ? (
-                                    <Badge bg="primary" className="d-flex align-items-center gap-1 py-2 px-3"><Wifi size={14}/> Host Up</Badge>
-                                ) : (
-                                    <Badge bg="secondary" className="d-flex align-items-center gap-1 py-2 px-3 opacity-75"><WifiOff size={14}/> Host Down</Badge>
-                                )}
-                            </div>
-                        </Card.Header>
-                        
-                        <Card.Body className="bg-light bg-opacity-25">
-                            {validPorts.length > 0 ? (
-                                <Row className="g-2">
-                                    {validPorts.map((p) => {
-                                        const isWhitelisted = p.isWhitelisted === true; 
-                                        const colorVariant = p.status ? (isWhitelisted ? "secondary" : getSeverityColor(p.severity)) : "light";
-                                        const borderColor = p.status ? `border-${colorVariant}` : "border-secondary border-opacity-25";
-                                        const textColor = p.status ? `text-${colorVariant}` : "text-muted opacity-75";
-                                        
-                                        return (
-                                            <Col xs={6} sm={4} md={3} key={p.port}>
-                                                <div 
-                                                    onClick={() => p.status && handleOpenWhitelistModal(ipResult, p)}
-                                                    style={{ cursor: p.status ? 'pointer' : 'default' }}
-                                                    className={`p-2 rounded border text-center position-relative transition-all ${
-                                                        p.status ? `bg-white ${borderColor} border-2 shadow-sm hover-shadow` : `bg-white ${borderColor}`
-                                                    }`}
-                                                >
-                                                    <div className={`fw-bold fs-5 mb-0 ${textColor}`}>{p.port}</div>
-                                                    <div style={{fontSize: '0.70rem'}} className={`fw-bold text-uppercase text-truncate ${textColor}`}>
-                                                        {p.status ? p.service || "UNKNOWN" : "CLOSED"}
-                                                    </div>
-                                                    
-                                                    {p.status && !isWhitelisted && (
-                                                        <div className={`position-absolute top-0 start-100 translate-middle badge rounded-pill bg-${colorVariant}`} style={{fontSize: '0.5rem', zIndex: 10}}>
-                                                            {p.severity?.toUpperCase()[0] || "L"}
-                                                        </div>
-                                                    )}
-
-                                                    {isWhitelisted && (
-                                                        <div className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-secondary border border-white" style={{fontSize: '0.5rem', zIndex: 10}}>
-                                                            <Shield size={10} />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </Col>
-                                        );
-                                    })}
-                                </Row>
-                            ) : (
-                                <div className="text-center py-4 text-muted opacity-75">
-                                    <Lock size={24} className="text-success mb-2"/>
-                                    <small className="fw-bold d-block">No Ports Open.</small>
+                return (
+                    <div key={ipResult.ip} className="col-lg-6 col-xl-6">
+                        <Card className={`card-enterprise border-0 shadow-sm h-100 ${isVulnerable ? 'border-start border-danger border-4' : 'border-start border-success border-4'}`}>
+                            <Card.Header className="bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                                <div className="d-flex align-items-center gap-2">
+                                    <Globe size={18} className="text-secondary"/>
+                                    <span className="fw-bold fs-5 text-dark">{ipResult.ip}</span>
+                                    
+                                    <Button 
+                                        variant="outline-secondary" 
+                                        size="sm" 
+                                        className="ms-2 py-0 px-2 d-flex align-items-center gap-1 border-dashed"
+                                        onClick={() => handleOpenWhitelistModal(ipResult)}
+                                        title="Manage Whitelist for this IP"
+                                    >
+                                        <Shield size={12}/> <span style={{fontSize: '10px'}} className="fw-bold">WHITELIST</span>
+                                    </Button>
                                 </div>
-                            )}
-                        </Card.Body>
-                    </Card>
-                </div>
-            );
-        })}
+
+                                <div className="d-flex align-items-center gap-2">
+                                    {isAlive ? (
+                                        <Badge bg="primary" className="d-flex align-items-center gap-1 py-2 px-3"><Wifi size={14}/> Host Up</Badge>
+                                    ) : (
+                                        <Badge bg="secondary" className="d-flex align-items-center gap-1 py-2 px-3 opacity-75"><WifiOff size={14}/> Host Down</Badge>
+                                    )}
+                                </div>
+                            </Card.Header>
+                            
+                            <Card.Body className="bg-light bg-opacity-25">
+                                {displayedPorts.length > 0 ? (
+                                    <Row className="g-2">
+                                        {displayedPorts.map((p) => {
+                                            const isWhitelisted = p.isWhitelisted === true; 
+                                            const colorVariant = p.status ? (isWhitelisted ? "secondary" : getSeverityColor(p.severity)) : "light";
+                                            const borderColor = p.status ? `border-${colorVariant}` : "border-secondary border-opacity-25";
+                                            const textColor = p.status ? `text-${colorVariant}` : "text-muted opacity-75";
+                                            
+                                            return (
+                                                <Col xs={6} sm={4} md={3} key={p.port}>
+                                                    <div 
+                                                        onClick={() => p.status && handleOpenWhitelistModal(ipResult, p)}
+                                                        style={{ cursor: p.status ? 'pointer' : 'default' }}
+                                                        className={`p-2 rounded border text-center position-relative transition-all ${
+                                                            p.status ? `bg-white ${borderColor} border-2 shadow-sm hover-shadow` : `bg-white ${borderColor}`
+                                                        }`}
+                                                    >
+                                                        <div className={`fw-bold fs-5 mb-0 ${textColor}`}>{p.port}</div>
+                                                        <div style={{fontSize: '0.70rem'}} className={`fw-bold text-uppercase text-truncate ${textColor}`}>
+                                                            {p.status ? p.service || "UNKNOWN" : "CLOSED"}
+                                                        </div>
+                                                        
+                                                        {p.status && !isWhitelisted && (
+                                                            <div className={`position-absolute top-0 start-100 translate-middle badge rounded-pill bg-${colorVariant}`} style={{fontSize: '0.5rem', zIndex: 10}}>
+                                                                {p.severity?.toUpperCase()[0] || "L"}
+                                                            </div>
+                                                        )}
+
+                                                        {isWhitelisted && (
+                                                            <div className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-secondary border border-white" style={{fontSize: '0.5rem', zIndex: 10}}>
+                                                                <Shield size={10} />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </Col>
+                                            );
+                                        })}
+                                    </Row>
+                                ) : (
+                                    <div className="text-center py-4 text-muted opacity-75">
+                                        <Lock size={24} className="text-success mb-2"/>
+                                        <small className="fw-bold d-block">No Open Ports.</small>
+                                    </div>
+                                )}
+                            </Card.Body>
+                        </Card>
+                    </div>
+                );
+            })
+        )}
       </div>
 
       <Modal show={showModal} onHide={() => setShowModal(false)} centered backdrop="static">
         <Modal.Header closeButton className="bg-light border-bottom">
             <Modal.Title className="h5 fw-bold text-dark d-flex align-items-center gap-2">
                 <Shield size={20} className="text-primary" /> 
-                Kelola Whitelist Host
+                Manage Host Whitelist
             </Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-4">
@@ -255,13 +310,13 @@ export default function BranchDetail() {
                 
                 <Dropdown className="w-100">
                     <Dropdown.Toggle variant="white" className="w-100 text-start d-flex justify-content-between align-items-center border form-control-lg fs-6" style={{ backgroundColor: '#fff' }}>
-                        <span className="text-muted">-- Ketik atau Pilih Port --</span>
+                        <span className="text-muted">-- Type or Select Port --</span>
                     </Dropdown.Toggle>
                     <Dropdown.Menu className="w-100 p-0 shadow-sm border-0" style={{maxHeight: '300px', overflow: 'hidden'}}>
                         <div className="p-2 border-bottom bg-light sticky-top">
                             <Form.Control 
                                 autoFocus 
-                                placeholder="Cari layanan (cth: HTTP) / Ketik angka port..." 
+                                placeholder="Search service (e.g. HTTP) / Type port number..." 
                                 value={portSearch} 
                                 onChange={(e) => setPortSearch(e.target.value)} 
                                 onKeyDown={(e) => {
@@ -289,14 +344,14 @@ export default function BranchDetail() {
 
                             {filteredAvailablePorts.length === 0 && !portSearch && (
                                 <div className="p-3 text-center text-muted small fst-italic">
-                                    Semua port terbuka sudah masuk list.
+                                    All open ports are already whitelisted.
                                 </div>
                             )}
                         </div>
                     </Dropdown.Menu>
                 </Dropdown>
                 <Form.Text className="text-muted small">
-                    Pilih dari daftar port yang terbuka, atau ketik manual angkanya.
+                    Select from the list of open ports, or type the number manually.
                 </Form.Text>
             </Form.Group>
 
@@ -307,13 +362,13 @@ export default function BranchDetail() {
                     </Form.Label>
                     {whitelistPortsList.length > 0 && (
                         <Badge bg="danger" className="text-white fw-normal" style={{cursor: 'pointer'}} onClick={() => setWhitelistPortsList([])}>
-                            Hapus Semua
+                            Clear All
                         </Badge>
                     )}
                 </div>
                 
                 {whitelistPortsList.length === 0 ? (
-                    <span className="text-muted small fst-italic">Belum ada port ditambahkan.</span>
+                    <span className="text-muted small fst-italic">No ports added yet.</span>
                 ) : (
                     <div className="d-flex flex-wrap gap-2 mt-2">
                         {whitelistPortsList.map((p) => (
@@ -336,11 +391,11 @@ export default function BranchDetail() {
         </Modal.Body>
         <Modal.Footer className="bg-light border-top-0">
             <Button variant="outline-secondary" onClick={() => setShowModal(false)} disabled={isSubmitting}>
-                Batal
+                Cancel
             </Button>
             <Button variant="primary" onClick={handleSaveWhitelist} className="fw-bold d-flex align-items-center gap-2" disabled={isSubmitting}>
                 {isSubmitting ? <Spinner size="sm" /> : <Save size={16} />}
-                Simpan Konfigurasi
+                Save Configuration
             </Button>
         </Modal.Footer>
       </Modal>

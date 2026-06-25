@@ -49,7 +49,7 @@ export default function DashboardTrend({ hideTitle = false }) {
                     </div>
                     <div>
                         <h3 className="fw-bold text-dark mb-0">Trend Chart</h3>
-                        <p className="text-muted mb-0 small">Tren keamanan bulanan berdasarkan total open ports.</p>
+                        <p className="text-muted mb-0 small">Monthly security trend based on total open ports.</p>
                     </div>
                 </div>
             )}
@@ -60,22 +60,22 @@ export default function DashboardTrend({ hideTitle = false }) {
                         <Card.Header className="bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
                             <div className="d-flex align-items-center gap-2">
                                 <TrendingUp size={18} className="text-secondary" />
-                                <h6 className="mb-0 fw-bold text-dark">Tren Keamanan Bulanan</h6>
+                                <h6 className="mb-0 fw-bold text-dark">Monthly Security Trend</h6>
                             </div>
                             <div className="d-flex gap-2">
                                 <Form.Select size="sm" style={{ width: '120px', fontWeight: '600' }} value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
-                                    <option value="1">Januari</option>
-                                    <option value="2">Februari</option>
-                                    <option value="3">Maret</option>
+                                    <option value="1">January</option>
+                                    <option value="2">February</option>
+                                    <option value="3">March</option>
                                     <option value="4">April</option>
-                                    <option value="5">Mei</option>
-                                    <option value="6">Juni</option>
-                                    <option value="7">Juli</option>
-                                    <option value="8">Agustus</option>
+                                    <option value="5">May</option>
+                                    <option value="6">June</option>
+                                    <option value="7">July</option>
+                                    <option value="8">August</option>
                                     <option value="9">September</option>
-                                    <option value="10">Oktober</option>
+                                    <option value="10">October</option>
                                     <option value="11">November</option>
-                                    <option value="12">Desember</option>
+                                    <option value="12">December</option>
                                 </Form.Select>
                                 <Form.Select size="sm" style={{ width: '90px', fontWeight: '600' }} value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
                                     <option value="2025">2025</option>
@@ -87,7 +87,7 @@ export default function DashboardTrend({ hideTitle = false }) {
                             {loading ? (
                                 <div className="h-100 d-flex flex-column align-items-center justify-content-center">
                                     <Spinner animation="border" variant="primary" />
-                                    <p className="mt-2 text-muted">Memuat data trend...</p>
+                                    <p className="mt-2 text-muted">Loading trend data...</p>
                                 </div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">

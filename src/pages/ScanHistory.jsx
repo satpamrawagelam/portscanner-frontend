@@ -32,10 +32,10 @@ const OpenPortsCell = ({ openPortsString, compact = false }) => {
                 // #dc3545
                 // #fd7e14
                 // #28a745
-                let color = '#6c757d'; // Default (secondary)
-                if (severity === 'high') color = '#dc3545'; // Merah
-                else if (severity === 'medium') color = '#fd7e14'; // Oranye
-                else if (severity === 'low') color = '#28a745'; // Hijau
+                let color = '#6c757d';
+                if (severity === 'high') color = '#dc3545';
+                else if (severity === 'medium') color = '#fd7e14';
+                else if (severity === 'low') color = '#28a745';
 
                 return (
                     <span 
@@ -69,11 +69,9 @@ export default function ScanHistory() {
     const [searchTerm, setSearchTerm] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
-    // State INPUT — hanya untuk dikontrol di form, tidak langsung trigger fetch
     const [dateStart, setDateStart] = useState("");
     const [dateEnd, setDateEnd] = useState("");
 
-    // State APPLIED — inilah yang masuk ke dependency useCallback & trigger fetch
     const [appliedDateStart, setAppliedDateStart] = useState("");
     const [appliedDateEnd, setAppliedDateEnd] = useState("");
 
@@ -91,7 +89,7 @@ export default function ScanHistory() {
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(searchTerm);
-            setCurrentPage(1); // Reset ke halaman 1 kalau pencarian berubah
+            setCurrentPage(1);
         }, 1000);
         return () => clearTimeout(timer);
     }, [searchTerm]);
@@ -106,16 +104,15 @@ export default function ScanHistory() {
                     if (data && data.sch_title) {
                         setSearchTerm(data.sch_title);
                         if (!toastShownRef.current) {
-                            toast.info(`Memfilter hasil untuk: ${data.sch_title}`);
+                            toast.info(`Filtering results for: ${data.sch_title}`);
                             toastShownRef.current = true;
                         }
                     }
                 })
-                .catch(err => console.error("Gagal load filter info", err));
+                .catch(err => console.error("Failed to load filter info", err));
         }
     }, [filterSchId]);
 
-    // Bangun query param hanya dari applied state (bukan input state)
     const buildDateParams = (start, end) => {
         let params = "";
         if (start) params += `&dateStart=${start}T00:00:00`;
@@ -131,13 +128,11 @@ export default function ScanHistory() {
         fetch(url)
             .then((res) => res.json())
             .then((result) => {
-                // Menyesuaikan jika response API berubah (pakai result.data atau langsung result)
                 const dataArray = result.data || result || [];
                 setHistoryData(dataArray);
             })
-            .catch((err) => toast.error("Gagal memuat history"))
+            .catch((err) => toast.error("Failed to load scan history"))
             .finally(() => setLoading(false));
-    // Fetch hanya bergantung pada applied state — bukan input state langsung
     }, [activeTab, currentPage, debouncedSearch, appliedDateStart, appliedDateEnd]);
 
     useEffect(() => {
@@ -149,10 +144,9 @@ export default function ScanHistory() {
         setCurrentPage(1);
     };
 
-    // Terapkan filter — hanya jalan saat kedua tanggal sudah diisi
     const handleApplyDateFilter = () => {
         if (!dateStart || !dateEnd) {
-            toast.warn("Harap isi Date Start dan Date End terlebih dahulu.");
+            toast.warn("Please fill in Date Start and Date End first.");
             return;
         }
         setAppliedDateStart(dateStart);
@@ -173,13 +167,12 @@ export default function ScanHistory() {
         return new Date(dateString).toLocaleDateString('id-ID', options);
     };
 
-    // ── Helper: severity color untuk PDF ──────────────────────────────────────
     const severityColor = (sev) => {
         switch ((sev || '').toLowerCase()) {
-            case 'high':     return [220, 53, 69];   // red
-            case 'medium':   return [253, 126, 20];  // orange
-            case 'low':      return [25, 135, 84];   // green
-            default:         return [108, 117, 125]; // secondary/gray
+            case 'high':     return [220, 53, 69];
+            case 'medium':   return [253, 126, 20];
+            case 'low':      return [25, 135, 84];
+            default:         return [108, 117, 125];
         }
     };
 
@@ -191,9 +184,8 @@ export default function ScanHistory() {
     };
 
     const exportToPdf = async () => {
-        toast.info("Memulai pembuatan PDF Report di background...");
+        toast.info("Starting PDF Report generation in background...");
         try {
-            // Periode: pakai applied filter, atau default ke bulan berjalan
             const now = new Date();
             const firstDay = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
             const lastDate = new Date(now.getFullYear(), now.getMonth()+1, 0);
@@ -211,13 +203,13 @@ export default function ScanHistory() {
             const data = await res.json();
 
             if (res.ok && data.success) {
-                toast.success("Laporan sedang dibuat di background! Silakan cek menu 'Report' beberapa saat lagi.");
+                toast.success("Report is being generated in the background! Please check the 'Report' menu in a moment.");
             } else {
-                toast.error("Gagal memproses laporan: " + (data.message || ''));
+                toast.error("Failed to process report: " + (data.message || ''));
             }
         } catch (err) {
             console.error(err);
-            toast.error('Gagal memproses ekspor PDF: ' + (err.message || ''));
+            toast.error('Failed to process PDF export: ' + (err.message || ''));
         }
     };
 
@@ -243,7 +235,6 @@ export default function ScanHistory() {
                     size="sm" 
                     className="px-3 d-flex align-items-center gap-1 fw-bold" 
                     onClick={() => setCurrentPage(p => p + 1)} 
-                    // Logika Pintar: Kalau data yang didapat < 10, berarti sudah mentok di halaman terakhir
                     disabled={historyData.length < itemsPerPage || loading}
                 >
                     Next <ChevronRight size={16} />
@@ -255,28 +246,28 @@ export default function ScanHistory() {
     const historyTableContent = (
         <Card className="card-enterprise border-0 shadow-sm mt-3">
             <Card.Header className="bg-white py-3">
-                {/* Row 1: Judul + tombol export */}
+                {/* Judul & tombol export */}
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
                     <div className="d-flex align-items-center gap-2 fw-bold text-secondary">
                         <ShieldAlert size={18} />
-                        {activeTab === 'manual' ? 'Daftar Temuan Manual Scan' : 'Daftar Temuan Scheduled Scan'}
+                        {activeTab === 'manual' ? 'Manual Scan Findings List' : 'Scheduled Scan Findings List'}
                     </div>
                     <div className="d-flex gap-2">
                         <Button variant="danger" size="sm" className="d-flex align-items-center gap-2 fw-bold px-3 text-white" onClick={exportToPdf}>
-                            <FileText size={16} /> Export PDF
+                            <FileText size={16} /> Generate PDF
                         </Button>
                     </div>
                 </div>
 
-                {/* Row 2: Filter periode + search */}
+                {/* Filter periode & search */}
                 <div className="d-flex align-items-center flex-wrap gap-2">
                     <div className="d-flex align-items-center gap-1">
                         <Calendar size={15} className="text-muted" />
-                        <span className="text-muted small fw-semibold">Periode:</span>
+                        <span className="text-muted small fw-semibold">Period:</span>
                     </div>
 
                     <InputGroup size="sm" style={{ maxWidth: '160px' }}>
-                        <InputGroup.Text className="bg-light border-end-0 text-muted" style={{ fontSize: '12px' }}>Dari</InputGroup.Text>
+                        <InputGroup.Text className="bg-light border-end-0 text-muted" style={{ fontSize: '12px' }}>From</InputGroup.Text>
                         <Form.Control
                             type="date"
                             className="border-start-0 bg-light"
@@ -287,7 +278,7 @@ export default function ScanHistory() {
                     </InputGroup>
 
                     <InputGroup size="sm" style={{ maxWidth: '160px' }}>
-                        <InputGroup.Text className="bg-light border-end-0 text-muted" style={{ fontSize: '12px' }}>S/d</InputGroup.Text>
+                        <InputGroup.Text className="bg-light border-end-0 text-muted" style={{ fontSize: '12px' }}>To</InputGroup.Text>
                         <Form.Control
                             type="date"
                             className="border-start-0 bg-light"
@@ -297,7 +288,7 @@ export default function ScanHistory() {
                         />
                     </InputGroup>
 
-                    {/* Tombol Terapkan — hanya aktif jika kedua tanggal sudah dipilih */}
+                    {/* Tombol Terapkan */}
                     <Button
                         variant={dateStart && dateEnd ? "primary" : "outline-secondary"}
                         size="sm"
@@ -305,12 +296,12 @@ export default function ScanHistory() {
                         style={{ fontSize: '12px' }}
                         onClick={handleApplyDateFilter}
                         disabled={!dateStart || !dateEnd}
-                        title="Terapkan filter tanggal"
+                        title="Apply date filter"
                     >
-                        <Search size={13} /> Terapkan
+                        <Search size={13} /> Apply
                     </Button>
 
-                    {/* Tombol Reset — hanya muncul kalau filter periode sudah aktif */}
+                    {/* Tombol Reset */}
                     {(appliedDateStart || appliedDateEnd) && (
                         <Button
                             variant="outline-danger"
@@ -318,7 +309,7 @@ export default function ScanHistory() {
                             className="d-flex align-items-center gap-1 px-2"
                             style={{ fontSize: '12px' }}
                             onClick={handleClearDateFilter}
-                            title="Reset filter tanggal"
+                            title="Reset date filter"
                         >
                             &times; Reset Filter
                         </Button>
@@ -326,9 +317,9 @@ export default function ScanHistory() {
 
                     <div className="ms-auto">
                         <InputGroup style={{ maxWidth: '250px' }} size="sm">
-                            <InputGroup.Text className="bg-light border-end-0"><Search size={16} className="text-muted" /></InputGroup.Text>
+                            <InputGroup.Text className="bg-light border-end-0"><Search size={16} className="text-muted"/></InputGroup.Text>
                             <Form.Control
-                                placeholder="Cari IP / Branch / Judul..."
+                                placeholder="Search IP / Branch / Title..."
                                 className="border-start-0 bg-light ps-0"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -343,17 +334,17 @@ export default function ScanHistory() {
                     <thead className="bg-light text-secondary small text-uppercase">
                         <tr>
                             <th className="ps-4 text-center" style={{ width: '50px' }}>No</th>
-                            <th style={{ width: '180px' }}>Waktu Scan</th>
-                            <th>Informasi Scan</th>
+                            <th style={{ width: '180px' }}>Scan Time</th>
+                            <th>Scan Info</th>
                             <th>Branch & IP</th>
                             <th>Open Ports Found</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan="5" className="text-center py-5"><Spinner size="sm" className="me-2" /> Memuat Data...</td></tr>
+                            <tr><td colSpan="5" className="text-center py-5"><Spinner size="sm" className="me-2" /> Loading Data...</td></tr>
                         ) : historyData.length === 0 ? (
-                            <tr><td colSpan="5" className="text-center py-5 text-muted">Data tidak ditemukan.</td></tr>
+                            <tr><td colSpan="5" className="text-center py-5 text-muted">No data found.</td></tr>
                         ) : (
                             historyData.map((item, index) => (
                                 <tr key={index}>
@@ -431,7 +422,7 @@ export default function ScanHistory() {
 
             <Card.Footer className="bg-white py-3 d-flex justify-content-between align-items-center">
                 <div className="text-muted small">
-                    Menampilkan data Halaman <strong className="text-dark">{currentPage}</strong>
+                    Showing Page <strong className="text-dark">{currentPage}</strong>
                 </div>
                 {renderPagination()}
             </Card.Footer>
@@ -447,15 +438,15 @@ export default function ScanHistory() {
                 </div>
                 <div>
                     <h3 className="fw-bold text-dark mb-0">Scan History Log</h3>
-                    <p className="text-muted mb-0 small">Riwayat temuan port terbuka (Vulnerability Report).</p>
+                    <p className="text-muted mb-0 small">Vulnerability Report History (Open Ports Findings).</p>
                 </div>
             </div>
 
             <Tabs activeKey={activeTab} onSelect={handleTabChange} className="mb-0 border-bottom-0" fill>
-                <Tab eventKey="manual" title={<span className="fw-bold d-flex align-items-center justify-content-center gap-2 py-2"><Play size={16} /> Riwayat Manual Scan</span>}>
+                <Tab eventKey="manual" title={<span className="fw-bold d-flex align-items-center justify-content-center gap-2 py-2"><Play size={16} /> Manual Scan History</span>}>
                     {historyTableContent}
                 </Tab>
-                <Tab eventKey="scheduled" title={<span className="fw-bold d-flex align-items-center justify-content-center gap-2 py-2"><Clock size={16} /> Riwayat Scheduled Scan</span>}>
+                <Tab eventKey="scheduled" title={<span className="fw-bold d-flex align-items-center justify-content-center gap-2 py-2"><Clock size={16} /> Scheduled Scan History</span>}>
                     {historyTableContent}
                 </Tab>
             </Tabs>

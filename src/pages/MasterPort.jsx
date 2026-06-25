@@ -34,7 +34,7 @@ export default function MasterPort() {
     fetch(`${API}/Port/GetByGroup/${groupId}`)
       .then(res => res.json())
       .then(data => setPorts(data))
-      .catch(() => toast.error("Gagal memuat data port"))
+      .catch(() => toast.error("Failed to load port data"))
       .finally(() => setLoading(false));
   };
 
@@ -43,16 +43,17 @@ export default function MasterPort() {
   }, [groupId]);
 
   const handleAdd = async () => {
-    if (!newPort) return toast.warn("Nomor Port wajib diisi");
-    if (newDesc.trim() == "") return toast.warn("Deskripsi tidak valid") 
+    if (!newPort) return toast.warn("Port Number is required");
+    if (newPort <= 0 || newPort > 65535) return toast.warn("Port Number must be between 1 and 65535");
+    if (newDesc.trim() == "") return toast.warn("Description cannot be empty")
     
     const isExist = ports.some(p => p.pm_port_number === Number(newPort));
-    if (isExist) return toast.error(`Port ${newPort} sudah ada di group ini!`);
+    if (isExist) return toast.error(`Port ${newPort} already exists in this group!`);
 
     setIsProcessing(true);
     try {
         await createPortAPI(Number(newPort), newDesc, newSeverity);
-        toast.success("Port berhasil ditambahkan");
+        toast.success("Port successfully added");
         
         setNewPort("");
         setNewDesc("");
@@ -60,7 +61,7 @@ export default function MasterPort() {
         setIsAdding(false);
         loadData(); 
     } catch (e) {
-        toast.error("Gagal menyimpan port");
+        toast.error("Failed to save port");
     } finally {
         setIsProcessing(false);
     }
@@ -96,7 +97,7 @@ export default function MasterPort() {
         let failCount = 0;
 
         setIsProcessing(true);
-        const loadingToast = toast.loading("Sedang mengimport data...");
+        const loadingToast = toast.loading("Importing data...");
 
         for (const line of lines) {
             if (!line.trim()) continue;
@@ -135,15 +136,15 @@ export default function MasterPort() {
         if (successCount > 0) {
             Swal.fire({
                 icon: 'success',
-                title: 'Import Selesai',
-                text: `Berhasil import: ${successCount}, Gagal/Duplikat: ${failCount}`
+                title: 'Import Completed',
+                text: `Successfully imported: ${successCount}, Failed/Duplicate: ${failCount}`
             });
             loadData();
         } else {
             Swal.fire({
                 icon: 'warning',
-                title: 'Import Gagal',
-                text: `Tidak ada data yang berhasil diimport. Pastikan format: Port,Deskripsi,(Opsional:Severity)`
+                title: 'Import Failed',
+                text: `No data successfully imported. Make sure the format is: Port,Description,(Optional:Severity)`
             });
         }
     };
@@ -151,7 +152,12 @@ export default function MasterPort() {
   };
 
   const handleUpdate = async () => {
-     if(!editPort) return toast.warn("Port tidak boleh kosong");
+     if (!editPort) return toast.warn("Port cannot be empty");
+     if (editDesc.trim() == "") return toast.warn("Description cannot be empty");
+     if (editPort <= 0 || editPort > 65535) return toast.warn("Port must be between 1 and 65535");
+
+     const isExist = ports.some(p => p.pm_port_number === Number(editPort));
+     if (isExist) return toast.error(`Port ${editPort} already exists in this group!`);
      
      try {
         const res = await fetch(`${API}/Port/Update/${editId}`, {
@@ -165,21 +171,21 @@ export default function MasterPort() {
         });
         if(!res.ok) throw new Error();
         
-        toast.success("Update berhasil");
+        toast.success("Update successful");
         setEditId(null);
         loadData();
      } catch {
-        toast.error("Gagal update");
+        toast.error("Failed to update");
      }
   };
 
   const handleDelete = async (pid) => {
     try {
         await fetch(`${API}/Port/Delete/${pid}`, { method: "POST" });
-        toast.success("Port dihapus");
+        toast.success("Port deleted");
         loadData();
     } catch {
-        toast.error("Gagal hapus");
+        toast.error("Failed to delete");
     }
   };
 
@@ -205,8 +211,8 @@ export default function MasterPort() {
                 <ArrowLeft size={18}/>
             </Button>
             <div>
-                <h3 className="fw-bold text-dark mb-0">Detail Port</h3>
-                <p className="text-muted mb-0 small">Manage port untuk Group ID: <strong>{groupId}</strong></p>
+                <h3 className="fw-bold text-dark mb-0">Port Details</h3>
+                <p className="text-muted mb-0 small">Manage ports for Group ID: <strong>{groupId}</strong></p>
             </div>
         </div>
         
@@ -233,7 +239,7 @@ export default function MasterPort() {
                 disabled={isProcessing}
             >
                 {isAdding ? <X size={18}/> : <Plus size={18}/>}
-                {isAdding ? "Batal" : "Tambah Port"}
+                {isAdding ? "Cancel" : "Add Port"}
             </Button>
         </div>
       </div>
@@ -242,13 +248,13 @@ export default function MasterPort() {
         <Card className="card-enterprise mb-4 border-primary border-2 shadow-sm bg-white">
             <Card.Header className="bg-primary bg-opacity-10 border-bottom-0 py-3">
                 <h6 className="fw-bold text-primary mb-0 d-flex align-items-center gap-2">
-                    <Server size={18}/> Input Data Port Baru
+                    <Server size={18}/> Input New Port Data
                 </h6>
             </Card.Header>
             <Card.Body>
                 <div className="row g-3 align-items-end">
                     <div className="col-md-2">
-                        <Form.Label className="small fw-bold text-muted">No. Port <span className="text-danger">*</span></Form.Label>
+                        <Form.Label className="small fw-bold text-muted">Port No. <span className="text-danger">*</span></Form.Label>
                         <InputGroup>
                             <InputGroup.Text className="bg-light"><Server size={16}/></InputGroup.Text>
                             <Form.Control 
@@ -262,7 +268,7 @@ export default function MasterPort() {
                         </InputGroup>
                     </div>
                     <div className="col-md-3">
-                        <Form.Label className="small fw-bold text-muted">Risk Level</Form.Label>
+                        <Form.Label className="small fw-bold text-muted">Severity</Form.Label>
                         <InputGroup>
                             <InputGroup.Text className="bg-light"><AlertTriangle size={16}/></InputGroup.Text>
                             <Form.Select 
@@ -270,19 +276,19 @@ export default function MasterPort() {
                                 onChange={(e) => setNewSeverity(e.target.value)}
                                 className="fw-semibold"
                             >
-                                <option value="Low">Low (Aman)</option>
-                                <option value="Medium">Medium (Waspada)</option>
-                                <option value="High">High (Bahaya)</option>
+                                <option value="Low">Low (Safe)</option>
+                                <option value="Medium">Medium (Warn)</option>
+                                <option value="High">High (Danger)</option>
                             </Form.Select>
                         </InputGroup>
                     </div>
                     <div className="col-md-4">
-                        <Form.Label className="small fw-bold text-muted">Deskripsi</Form.Label>
+                        <Form.Label className="small fw-bold text-muted">Description</Form.Label>
                         <InputGroup>
                              <InputGroup.Text className="bg-light"><Tag size={16}/></InputGroup.Text>
                              <Form.Control 
                                 type="text" 
-                                placeholder="Contoh: Web Server HTTP" 
+                                placeholder="Example: Web Server HTTP" 
                                 value={newDesc}
                                 onChange={(e) => setNewDesc(e.target.value)}
                             />
@@ -296,7 +302,7 @@ export default function MasterPort() {
                             disabled={!newPort || isProcessing}
                         >
                             {isProcessing ? <Spinner size="sm"/> : <Save size={18}/>}
-                            Simpan
+                            Save
                         </Button>
                     </div>
                 </div>
@@ -309,7 +315,7 @@ export default function MasterPort() {
             <InputGroup style={{ maxWidth: '300px' }}>
                 <InputGroup.Text className="bg-light border-end-0"><Search size={16} className="text-muted"/></InputGroup.Text>
                 <Form.Control 
-                    placeholder="Cari port atau deskripsi..." 
+                    placeholder="Search port or description..." 
                     className="border-start-0 bg-light ps-0"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -332,7 +338,7 @@ export default function MasterPort() {
                     {loading ? (
                         <tr><td colSpan="5" className="text-center py-4"><Spinner size="sm" className="me-2"/> Loading data...</td></tr>
                     ) : filteredPorts.length === 0 ? (
-                        <tr><td colSpan="5" className="text-center py-5 text-muted">Data tidak ditemukan.</td></tr>
+                        <tr><td colSpan="5" className="text-center py-5 text-muted">No data found.</td></tr>
                     ) : (
                         filteredPorts.map((p, i) => (
                             <tr key={p.pm_id}>
@@ -403,12 +409,12 @@ export default function MasterPort() {
                                             <Button 
                                                 size="sm" variant="light" className="text-danger border"
                                                 onClick={() => Swal.fire({
-                                                    title: "Hapus Port?",
-                                                    text: "Data tidak bisa dikembalikan!",
+                                                    title: "Delete Port?",
+                                                    text: "This action cannot be undone!",
                                                     icon: "warning",
                                                     showCancelButton: true,
                                                     confirmButtonColor: "#d33",
-                                                    confirmButtonText: "Ya, Hapus!"
+                                                    confirmButtonText: "Yes, Delete!"
                                                 }).then((res) => {
                                                     if (res.isConfirmed) handleDelete(p.pm_id);
                                                 })}
@@ -426,7 +432,7 @@ export default function MasterPort() {
         </div>
 
         <Card.Footer className="bg-white text-muted small py-3">
-            Total: <strong>{filteredPorts.length}</strong> port terdaftar.
+            Total: <strong>{filteredPorts.length}</strong> registered ports.
         </Card.Footer>
       </Card>
     </div>

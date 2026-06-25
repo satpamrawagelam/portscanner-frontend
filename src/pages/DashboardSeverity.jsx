@@ -76,7 +76,7 @@ export default function DashboardSeverity({ hideTitle = false }) {
         return (
             <div className="text-center py-5">
                 <Spinner animation="border" variant="primary" />
-                <p className="mt-2 text-muted">Memuat data severity...</p>
+                <p className="mt-2 text-muted">Loading severity data...</p>
             </div>
         );
     }
@@ -90,7 +90,7 @@ export default function DashboardSeverity({ hideTitle = false }) {
                     </div>
                     <div>
                         <h3 className="fw-bold text-dark mb-0">Severity Chart</h3>
-                        <p className="text-muted mb-0 small">Distribusi risiko di berbagai branch.</p>
+                        <p className="text-muted mb-0 small">Risk distribution across branches.</p>
                     </div>
                 </div>
             )}
@@ -101,9 +101,9 @@ export default function DashboardSeverity({ hideTitle = false }) {
                         <Card.Header className="bg-white py-3 border-bottom d-flex align-items-center gap-2">
                             <AlertTriangle size={18} className="text-secondary" />
                             <div>
-                                <h6 className="mb-0 fw-bold text-dark">Komposisi Risiko per Branch (High/Medium/Low)</h6>
+                                <h6 className="mb-0 fw-bold text-dark">Risk Composition per Branch (High/Medium/Low)</h6>
                                 <small className="text-muted" style={{ fontSize: '11px' }}>
-                                    Menampilkan {risks.length > 0 ? (riskPage - 1) * itemsPerPage + 1 : 0} - {Math.min(riskPage * itemsPerPage, risks.length)} dari {risks.length} cabang
+                                    Showing {risks.length > 0 ? (riskPage - 1) * itemsPerPage + 1 : 0} - {Math.min(riskPage * itemsPerPage, risks.length)} of {risks.length} branches
                                 </small>
                             </div>
                         </Card.Header>
@@ -111,7 +111,7 @@ export default function DashboardSeverity({ hideTitle = false }) {
                         <Card.Body style={{ height: '450px' }}>
                             {risks.length === 0 ? (
                                 <div className="h-100 d-flex align-items-center justify-content-center text-muted">
-                                    Tidak ada data risiko
+                                    No risk data available
                                 </div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">

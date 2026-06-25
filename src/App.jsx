@@ -15,6 +15,7 @@ import MasterBranch from './pages/MasterBranch';
 import Setting from './pages/Setting';
 import ScanHistory from './pages/ScanHistory';
 import Report from './pages/Report';
+import VulnerableHosts from './pages/VulnerableHosts';
 
 import "react-toastify/dist/ReactToastify.css"
 
@@ -33,6 +34,7 @@ function App() {
           <Route path="mastergroup" element={<MasterGroup />} />
           <Route path="master/port/:id" element={<MasterPort />} />
           <Route path="branch/:id" element={<BranchDetail />} />
+          <Route path="vulnerable-hosts" element={<VulnerableHosts />} />
           <Route path="masterbranch" element={<MasterBranch />} />
           <Route path="setting" element={<Setting />} />
           <Route path="scanhistory" element={<ScanHistory />} />

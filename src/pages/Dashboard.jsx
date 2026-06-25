@@ -14,7 +14,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                     <h3 className="fw-bold text-dark mb-0">Dashboard Overview</h3>
-                    <p className="text-muted mb-0 small">Monitoring status keamanan jaringan realtime.</p>
+                    <p className="text-muted mb-0 small">Real-time network security status monitoring.</p>
                 </div>
             </div>
 

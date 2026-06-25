@@ -32,7 +32,7 @@ export default function MasterGroup() {
     fetch(`${API}/PortGroup/GetAllPortGroup`)
       .then((res) => res.json())
       .then((data) => setGroups(data))
-      .catch(() => toast.error("Gagal koneksi ke server"))
+      .catch(() => toast.error("Failed to connect to server"))
       .finally(() => setLoading(false));
   };
 
@@ -41,7 +41,7 @@ export default function MasterGroup() {
   }, []);
 
   const handleAdd = async () => {
-    if (!newGroupName.trim()) return toast.warn("Nama group tidak boleh kosong");
+    if (!newGroupName.trim()) return toast.warn("Group name cannot be empty");
 
     try {
       const res = await fetch(`${API}/PortGroup/Add`, {
@@ -51,17 +51,17 @@ export default function MasterGroup() {
       });
       if (!res.ok) throw new Error();
       
-      toast.success('Group berhasil ditambahkan');
+      toast.success('Group successfully added');
       setNewGroupName("");
       setIsAdding(false);
       loadData();
     } catch {
-      toast.error("Gagal menambah group");
+      toast.error("Failed to add group");
     }
   };
 
   const handleUpdate = async () => {
-    if (!editName.trim()) return toast.warn("Nama group tidak boleh kosong");
+    if (!editName.trim()) return toast.warn("Group name cannot be empty");
 
     try {
       const res = await fetch(`${API}/PortGroup/Update/${editId}`, {
@@ -71,17 +71,17 @@ export default function MasterGroup() {
       });
       if (!res.ok) throw new Error();
 
-      toast.success("Update berhasil");
+      toast.success("Group successfully updated!");
       setEditId(null);
       setEditName("");
       loadData();
     } catch {
-      toast.error("Gagal update group");
+      toast.error("Failed to update group");
     }
   };
 
   const handleDelete = async (id, count) => {
-    if (count > 0) return toast.error("Gagal hapus: Group ini masih memiliki Port!");
+    if (count > 0) return toast.error("Failed to delete: This group still contains ports!");
 
     try {
       const res = await fetch(`${API}/PortGroup/Delete/${id}`, { method: "POST" });
@@ -89,10 +89,10 @@ export default function MasterGroup() {
          const msg = await res.text();
          throw new Error(msg);
       }
-      toast.success("Group dihapus");
+      toast.success("Group deleted");
       loadData();
     } catch (err) {
-      toast.error(err.message || "Gagal menghapus group");
+      toast.error(err.message || "Failed to delete group");
     }
   };
 
@@ -109,7 +109,7 @@ export default function MasterGroup() {
           <h3 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
              <FolderOpen className="text-primary"/> Master Port Group
           </h3>
-          <p className="text-muted mb-0 small">Kelola kategori port scanning (Web, DB, dll).</p>
+          <p className="text-muted mb-0 small">Manage port scanning categories (Web, DB, etc.).</p>
         </div>
         <Button 
             variant="primary" 
@@ -117,7 +117,7 @@ export default function MasterGroup() {
             onClick={() => setIsAdding(!isAdding)}
         >
             {isAdding ? <X size={18}/> : <Plus size={18}/>}
-            {isAdding ? "Batal Tambah" : "Tambah Group"}
+            {isAdding ? "Cancel Add" : "Add Group"}
         </Button>
       </div>
 
@@ -127,14 +127,14 @@ export default function MasterGroup() {
                 <FolderOpen size={24} className="text-primary"/>
                 <Form.Control 
                     type="text" 
-                    placeholder="Masukkan Nama Group Baru (Contoh: Gaming Ports)..." 
+                    placeholder="Enter New Group Name (Example: Gaming Ports)..." 
                     value={newGroupName}
                     onChange={(e) => setNewGroupName(e.target.value)}
                     autoFocus
                     className="border-primary fw-bold"
                 />
                 <Button variant="primary" onClick={handleAdd} className="fw-bold text-nowrap">
-                    <Save size={18} className="me-1"/> Simpan
+                    <Save size={18} className="me-1"/> Save
                 </Button>
             </Card.Body>
          </Card>
@@ -145,7 +145,7 @@ export default function MasterGroup() {
             <InputGroup style={{ maxWidth: '300px' }}>
                 <InputGroup.Text className="bg-light border-end-0"><Search size={16} className="text-muted"/></InputGroup.Text>
                 <Form.Control 
-                    placeholder="Cari nama group..." 
+                    placeholder="Search group name..." 
                     className="border-start-0 bg-light ps-0"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -167,13 +167,13 @@ export default function MasterGroup() {
                 {loading ? (
                   <tr>
                     <td colSpan="4" className="text-center py-5 text-muted">
-                        <Spinner animation="border" size="sm" className="me-2"/> Memuat data...
+                        <Spinner animation="border" size="sm" className="me-2"/> Loading data...
                     </td>
                   </tr>
                 ) : filteredGroups.length === 0 ? (
                     <tr>
                         <td colSpan="4" className="text-center py-5 text-muted">
-                            Data tidak ditemukan.
+                            No data found.
                         </td>
                     </tr>
                 ) : (
@@ -190,8 +190,8 @@ export default function MasterGroup() {
                                     onChange={(e) => setEditName(e.target.value)}
                                     className="fw-bold"
                                 />
-                                <Button size="sm" variant="success" onClick={handleUpdate} title="Simpan"><Save size={14}/></Button>
-                                <Button size="sm" variant="secondary" onClick={() => setEditId(null)} title="Batal"><X size={14}/></Button>
+                                 <Button size="sm" variant="success" onClick={handleUpdate} title="Save"><Save size={14}/></Button>
+                                <Button size="sm" variant="secondary" onClick={() => setEditId(null)} title="Cancel"><X size={14}/></Button>
                             </div>
                         ) : (
                             <span className="fw-bold text-dark">{g.pg_name}</span>
@@ -222,15 +222,15 @@ export default function MasterGroup() {
                                     >
                                         <Edit2 size={14}/>
                                     </Button>
-                                    <Button 
+                                     <Button 
                                         variant="light" size="sm" className="text-danger border"
                                         onClick={() => Swal.fire({
-                                            title: "Hapus Group?",
-                                            text: "Data tidak bisa dikembalikan!",
+                                            title: "Delete Group?",
+                                            text: "This action cannot be undone!",
                                             icon: "warning",
                                             showCancelButton: true,
                                             confirmButtonColor: "#d33",
-                                            confirmButtonText: "Ya, Hapus!"
+                                            confirmButtonText: "Yes, Delete!"
                                         }).then((res) => {
                                             if (res.isConfirmed) handleDelete(g.pg_id, g.totalPorts || 0);
                                         })}
@@ -248,7 +248,7 @@ export default function MasterGroup() {
         </div>
         
         <Card.Footer className="bg-white text-muted small py-3">
-            Total: <strong>{filteredGroups.length}</strong> group terdaftar.
+            Total: <strong>{filteredGroups.length}</strong> registered groups.
         </Card.Footer>
       </Card>
     </div>

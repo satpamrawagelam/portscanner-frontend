@@ -75,7 +75,7 @@ export default function DashboardBranchHealth({ hideTitle = false }) {
         return (
             <div className="text-center py-5">
                 <Spinner animation="border" variant="primary" />
-                <p className="mt-2 text-muted">Memuat data branch health...</p>
+                <p className="mt-2 text-muted">Loading branch health data...</p>
             </div>
         );
     }
@@ -89,7 +89,7 @@ export default function DashboardBranchHealth({ hideTitle = false }) {
                     </div>
                     <div>
                         <h3 className="fw-bold text-dark mb-0">Branch Health</h3>
-                        <p className="text-muted mb-0 small">Detail data kesehatan setiap branch.</p>
+                        <p className="text-muted mb-0 small">Detailed health status of each branch.</p>
                     </div>
                 </div>
             )}
@@ -101,9 +101,9 @@ export default function DashboardBranchHealth({ hideTitle = false }) {
                             <div className="d-flex align-items-center gap-2 text-secondary fw-bold">
                                 <Server size={18} />
                                 <div>
-                                    <div className="mb-0">Detail Data Kesehatan Cabang</div>
+                                    <div className="mb-0">Branch Health Details</div>
                                     <small className="text-muted fw-normal" style={{ fontSize: '11px' }}>
-                                        Halaman {branchPage} dari {totalBranchPages || 1}
+                                        Page {branchPage} of {totalBranchPages || 1}
                                     </small>
                                 </div>
                             </div>
@@ -114,7 +114,7 @@ export default function DashboardBranchHealth({ hideTitle = false }) {
                                         <Search size={16} className="text-muted" />
                                     </InputGroup.Text>
                                     <Form.Control
-                                        placeholder="Cari Nama Branch..."
+                                        placeholder="Search Branch Name..."
                                         className="border-start-0 bg-light"
                                         value={branchSearch}
                                         onChange={(e) => setBranchSearch(e.target.value)}
@@ -127,7 +127,7 @@ export default function DashboardBranchHealth({ hideTitle = false }) {
                             <Table hover responsive className="mb-0 align-middle">
                                 <tbody>
                                     {currentBranchData.length === 0 ? (
-                                        <tr><td colSpan="6" className="text-center py-4 text-muted">Data tidak ditemukan</td></tr>
+                                        <tr><td colSpan="6" className="text-center py-4 text-muted">No data found</td></tr>
                                     ) : (
                                         currentBranchData.map((b) => (
                                             <tr key={b.branch_id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/branch/${b.branch_id}`)}>
