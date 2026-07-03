@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Card, Row, Col, Badge, Button, Spinner, Modal, Form, Dropdown } from "react-bootstrap";
 import { ArrowLeft, Server, ShieldAlert, ShieldCheck, Globe, Activity, Lock, Wifi, WifiOff, Shield, X, Save, Search } from "lucide-react"; 
 import { toast, ToastContainer } from "react-toastify";
@@ -8,10 +8,19 @@ import API from "./API";
 
 export default function VulnerableHosts() {
   const navigate = useNavigate();
+  const location = useLocation();
    
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const [filters, setFilters] = useState({
+    high: true,
+    medium: true,
+    low: true,
+    info: true,
+    safe: true
+  });
 
   const [showModal, setShowModal] = useState(false);
   const [selectedIp, setSelectedIp] = useState("");
@@ -25,6 +34,37 @@ export default function VulnerableHosts() {
   useEffect(() => {
     fetchVulnerableHosts();
   }, []);
+
+  useEffect(() => {
+    if (location.state && location.state.filter) {
+      const activeFilter = location.state.filter;
+      if (activeFilter === "vulnerable") {
+        setFilters({
+          high: true,
+          medium: false,
+          low: false,
+          info: false,
+          safe: false
+        });
+      } else if (activeFilter === "safe") {
+        setFilters({
+          high: false,
+          medium: false,
+          low: false,
+          info: false,
+          safe: true
+        });
+      } else if (activeFilter === "all") {
+        setFilters({
+          high: true,
+          medium: true,
+          low: true,
+          info: true,
+          safe: true
+        });
+      }
+    }
+  }, [location.state]);
 
   const fetchVulnerableHosts = () => {
     setLoading(true);
@@ -41,10 +81,12 @@ export default function VulnerableHosts() {
   };
 
   const getSeverityColor = (severity) => {
-      const sev = severity?.toLowerCase() || 'low';
+      const sev = severity?.toLowerCase() || 'info';
       switch(sev) {
           case 'high': return 'danger';   
           case 'medium': return 'warning'; 
+          case 'low': return 'primary';
+          case 'info': return 'secondary';
           default: return 'info';          
       }
   };
@@ -113,12 +155,25 @@ export default function VulnerableHosts() {
       (p.service && p.service.toLowerCase().includes(portSearch.toLowerCase()))
   );
 
-  const filteredHosts = data.filter(host => 
-      host.ip.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      host.branchName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredHosts = data.filter(host => {
+      const matchesSearch = host.ip.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            host.branchName.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!matchesSearch) return false;
 
-  if (loading) return <div className="text-center py-5"><Spinner animation="border" variant="danger" /><p className="mt-2 text-muted">Loading vulnerable hosts...</p></div>;
+      const openPorts = host.ports.filter(p => p.port !== 0 && p.port !== null && p.status);
+      const hasOpen = openPorts.length > 0;
+
+      if (hasOpen) {
+          return openPorts.some(p => {
+              const sev = p.severity?.toLowerCase() || 'info';
+              return filters[sev] === true;
+          });
+      } else {
+          return filters.safe === true;
+      }
+  });
+
+  if (loading) return <div className="text-center py-5"><Spinner animation="border" variant="danger" /><p className="mt-2 text-muted">Loading host data...</p></div>;
 
   return (
     <div className="animate__animated animate__fadeIn">
@@ -130,10 +185,10 @@ export default function VulnerableHosts() {
                 <ArrowLeft size={18}/>
              </Button>
              <div>
-                <h3 className="fw-bold text-dark mb-0">Vulnerable Hosts</h3>
+                <h3 className="fw-bold text-dark mb-0">Host Security Details</h3>
                 <div className="text-muted small d-flex align-items-center gap-2">
-                    <ShieldAlert size={14} className="text-danger"/> Vulnerability Tracking
-                    <Badge bg="danger" className="rounded-pill ms-1">{filteredHosts.length} Hosts with Open High Ports</Badge>
+                    <ShieldAlert size={14} className="text-primary"/> Security Tracking
+                    <Badge bg="primary" className="rounded-pill ms-1">{filteredHosts.length} Hosts Matching Filters</Badge>
                 </div>
              </div>
         </div>
@@ -142,17 +197,81 @@ export default function VulnerableHosts() {
       {/* Search Filter bar */}
       <Card className="border-0 shadow-sm mb-4">
         <Card.Body className="p-3">
-          <div className="position-relative">
-            <Search size={18} className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
-            <Form.Control
-              type="text"
-              placeholder="Search by IP Address or Branch Name..."
-              className="ps-5"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ borderRadius: '8px' }}
-            />
-          </div>
+          <Row className="g-3 align-items-center">
+            <Col md={12}>
+              <div className="position-relative">
+                <Search size={18} className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
+                <Form.Control
+                  type="text"
+                  placeholder="Search by IP Address or Branch Name..."
+                  className="ps-5"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ borderRadius: '8px' }}
+                />
+              </div>
+            </Col>
+            <Col md={12}>
+              <div className="d-flex flex-wrap gap-4 align-items-center px-1">
+                <span className="text-muted fw-bold small text-uppercase">Filters:</span>
+                <Form.Check 
+                  type="checkbox"
+                  id="filter-high"
+                  label={
+                    <span className="d-flex align-items-center gap-1 cursor-pointer">
+                      <Badge bg="danger" className="px-2 py-1">High</Badge> <span className="small text-dark fw-semibold">Severity</span>
+                    </span>
+                  }
+                  checked={filters.high}
+                  onChange={(e) => setFilters({ ...filters, high: e.target.checked })}
+                />
+                <Form.Check 
+                  type="checkbox"
+                  id="filter-medium"
+                  label={
+                    <span className="d-flex align-items-center gap-1 cursor-pointer">
+                      <Badge bg="warning" text="dark" className="px-2 py-1">Medium</Badge> <span className="small text-dark fw-semibold">Severity</span>
+                    </span>
+                  }
+                  checked={filters.medium}
+                  onChange={(e) => setFilters({ ...filters, medium: e.target.checked })}
+                />
+                <Form.Check 
+                  type="checkbox"
+                  id="filter-low"
+                  label={
+                    <span className="d-flex align-items-center gap-1 cursor-pointer">
+                      <Badge bg="primary" className="px-2 py-1">Low</Badge> <span className="small text-dark fw-semibold">Severity</span>
+                    </span>
+                  }
+                  checked={filters.low}
+                  onChange={(e) => setFilters({ ...filters, low: e.target.checked })}
+                />
+                <Form.Check 
+                  type="checkbox"
+                  id="filter-info"
+                  label={
+                    <span className="d-flex align-items-center gap-1 cursor-pointer">
+                      <Badge bg="secondary" className="px-2 py-1">Info</Badge> <span className="small text-dark fw-semibold">Severity</span>
+                    </span>
+                  }
+                  checked={filters.info}
+                  onChange={(e) => setFilters({ ...filters, info: e.target.checked })}
+                />
+                <Form.Check 
+                  type="checkbox"
+                  id="filter-safe"
+                  label={
+                    <span className="d-flex align-items-center gap-1 cursor-pointer">
+                      <Badge bg="success" className="px-2 py-1">Safe</Badge> <span className="small text-dark fw-semibold">Hosts</span>
+                    </span>
+                  }
+                  checked={filters.safe}
+                  onChange={(e) => setFilters({ ...filters, safe: e.target.checked })}
+                />
+              </div>
+            </Col>
+          </Row>
         </Card.Body>
       </Card>
 
@@ -160,19 +279,25 @@ export default function VulnerableHosts() {
         <Card className="border-0 shadow-sm text-center py-5">
           <Card.Body>
             <ShieldCheck size={48} className="text-success mb-3" />
-            <h4 className="fw-bold text-dark">No Vulnerable Hosts Found</h4>
-            <p className="text-muted">All active hosts are secure or have no open High-severity ports.</p>
+            <h4 className="fw-bold text-dark">No Matching Hosts Found</h4>
+            <p className="text-muted">No hosts match the selected security filters or search queries.</p>
           </Card.Body>
         </Card>
       ) : (
         <div className="row g-4">
           {filteredHosts.map((ipResult) => {
-              const highOpenPorts = ipResult.ports.filter(p => p.status && p.severity?.toLowerCase() === 'high');
+              const displayedPorts = ipResult.ports.filter(p => {
+                  if (p.port === 0 || p.port === null || !p.status) return false;
+                  const sev = p.severity?.toLowerCase() || 'info';
+                  return filters[sev] === true;
+              });
+              const openCount = ipResult.ports.filter(p => p.status && p.port !== 0).length;
+              const isVulnerable = openCount > 0;
               const isAlive = ipResult.hostStatus;
 
               return (
                   <div key={ipResult.ip} className="col-lg-6 col-xl-6">
-                      <Card className="card-enterprise border-0 shadow-sm h-100 border-start border-danger border-4">
+                      <Card className={`card-enterprise border-0 shadow-sm h-100 border-start ${isVulnerable ? 'border-danger' : 'border-success'} border-4`}>
                           <Card.Header className="bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                               <div className="d-flex align-items-center gap-2">
                                   <Globe size={18} className="text-secondary"/>
@@ -183,15 +308,17 @@ export default function VulnerableHosts() {
                                     </small>
                                   </div>
                                   
-                                  <Button 
-                                      variant="outline-secondary" 
-                                      size="sm" 
-                                      className="ms-2 py-0 px-2 d-flex align-items-center gap-1 border-dashed"
-                                      onClick={() => handleOpenWhitelistModal(ipResult)}
-                                      title="Manage Whitelist for this IP"
-                                  >
-                                      <Shield size={12}/> <span style={{fontSize: '10px'}} className="fw-bold">WHITELIST</span>
-                                  </Button>
+                                  {isVulnerable && (
+                                      <Button 
+                                          variant="outline-secondary" 
+                                          size="sm" 
+                                          className="ms-2 py-0 px-2 d-flex align-items-center gap-1 border-dashed"
+                                          onClick={() => handleOpenWhitelistModal(ipResult)}
+                                          title="Manage Whitelist for this IP"
+                                      >
+                                          <Shield size={12}/> <span style={{fontSize: '10px'}} className="fw-bold">WHITELIST</span>
+                                      </Button>
+                                  )}
                               </div>
 
                               <div className="d-flex align-items-center gap-2">
@@ -204,16 +331,16 @@ export default function VulnerableHosts() {
                           </Card.Header>
                           
                           <Card.Body className="bg-light bg-opacity-25">
-                              {highOpenPorts.length > 0 ? (
+                              {displayedPorts.length > 0 ? (
                                   <Row className="g-2">
-                                      {highOpenPorts.map((p) => {
+                                      {displayedPorts.map((p, idx) => {
                                           const isWhitelisted = p.isWhitelisted === true; 
                                           const colorVariant = isWhitelisted ? "secondary" : getSeverityColor(p.severity);
                                           const borderColor = `border-${colorVariant}`;
                                           const textColor = `text-${colorVariant}`;
                                           
                                           return (
-                                              <Col xs={6} sm={4} md={3} key={p.port}>
+                                              <Col xs={6} sm={4} md={3} key={`${p.port}-${idx}`}>
                                                   <div 
                                                       onClick={() => handleOpenWhitelistModal(ipResult, p)}
                                                       style={{ cursor: 'pointer' }}
@@ -226,7 +353,7 @@ export default function VulnerableHosts() {
                                                       
                                                       {!isWhitelisted && (
                                                           <div className={`position-absolute top-0 start-100 translate-middle badge rounded-pill bg-${colorVariant}`} style={{fontSize: '0.5rem', zIndex: 10}}>
-                                                              {p.severity?.toUpperCase()[0] || "H"}
+                                                              {p.severity?.toUpperCase()[0] || "I"}
                                                           </div>
                                                       )}
 
@@ -243,7 +370,9 @@ export default function VulnerableHosts() {
                               ) : (
                                   <div className="text-center py-4 text-muted opacity-75">
                                       <Lock size={24} className="text-success mb-2"/>
-                                      <small className="fw-bold d-block">No Open High-Severity Ports.</small>
+                                      <small className="fw-bold d-block">
+                                          {isVulnerable ? "No matching open ports." : "Safe / No Open Ports."}
+                                      </small>
                                   </div>
                               )}
                           </Card.Body>
@@ -292,11 +421,11 @@ export default function VulnerableHosts() {
                         </div>
                         
                         <div style={{maxHeight: '200px', overflowY: 'auto'}}>
-                            {filteredAvailablePorts.map((p) => {
+                            {filteredAvailablePorts.map((p, idx) => {
                                 if (whitelistPortsList.includes(p.port)) return null;
                                 
                                 return (
-                                    <Dropdown.Item key={p.port} onClick={() => handleAddPort(p.port)} className="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <Dropdown.Item key={`${p.port}-${idx}`} onClick={() => handleAddPort(p.port)} className="d-flex justify-content-between align-items-center py-2 border-bottom">
                                         <span className="fw-bold text-dark small">Port {p.port}</span>
                                         <Badge bg="light" text="dark" className="border fw-normal">{p.service || 'UNKNOWN'}</Badge>
                                     </Dropdown.Item>

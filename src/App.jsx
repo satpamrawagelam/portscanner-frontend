@@ -16,6 +16,8 @@ import Setting from './pages/Setting';
 import ScanHistory from './pages/ScanHistory';
 import Report from './pages/Report';
 import VulnerableHosts from './pages/VulnerableHosts';
+import Login from './pages/Login';
+import MasterAccount from './pages/MasterAccount';
 
 import "react-toastify/dist/ReactToastify.css"
 
@@ -23,6 +25,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/login" element={<Login />} />
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
@@ -36,6 +39,7 @@ function App() {
           <Route path="branch/:id" element={<BranchDetail />} />
           <Route path="vulnerable-hosts" element={<VulnerableHosts />} />
           <Route path="masterbranch" element={<MasterBranch />} />
+          <Route path="masteraccount" element={<MasterAccount />} />
           <Route path="setting" element={<Setting />} />
           <Route path="scanhistory" element={<ScanHistory />} />
           <Route path="report" element={<Report />} />

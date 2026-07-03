@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Collapse } from "react-bootstrap";
 import { 
   LayoutDashboard, 
@@ -12,11 +12,33 @@ import {
   ChevronRight,
   Activity,
   AlertTriangle,
-  TrendingUp
+  TrendingUp,
+  LogOut,
+  User
 } from "lucide-react";
+import Swal from "sweetalert2";
 
 export default function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    Swal.fire({
+      title: "Logout",
+      text: "Are you sure you want to end your session?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc3545",
+      cancelButtonColor: "#6c757d",
+      confirmButtonText: "Yes, Logout",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        localStorage.removeItem("isLoggedIn");
+        localStorage.removeItem("username");
+        navigate("/login");
+      }
+    });
+  };
   const [dashboardOpen, setDashboardOpen] = useState(location.pathname.startsWith('/dashboard') || location.pathname === '/');
 
   const isDashboardActive = location.pathname.startsWith('/dashboard') || location.pathname === '/';
@@ -39,6 +61,7 @@ export default function Sidebar() {
       title: "SYSTEM",
       items: [
         { name: "Configuration", path: "/setting", icon: <Settings size={20} /> },
+        { name: "Master Account", path: "/masteraccount", icon: <User size={20} /> },
       ]
     }
   ];
@@ -200,10 +223,19 @@ export default function Sidebar() {
         ))}
       </div>
 
-      <div className="p-3 border-top bg-light text-center">
-        <small className="text-muted" style={{fontSize: '10px'}}>
-            v1.0 &copy; 2026 Security Ops
-        </small>
+      <div className="p-3 border-top bg-light d-flex flex-column gap-2">
+        <button 
+          onClick={handleLogout}
+          className="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-2 py-2 fw-bold"
+          style={{ borderRadius: '8px', fontSize: '14px' }}
+        >
+          <LogOut size={16} /> Logout
+        </button>
+        <div className="text-center">
+          <small className="text-muted" style={{fontSize: '10px'}}>
+              v1.0 &copy; 2026 Security Ops
+          </small>
+        </div>
       </div>
     </div>
   );

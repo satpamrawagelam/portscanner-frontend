@@ -1,9 +1,15 @@
 import React from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, Navigate } from "react-router-dom";
 import { Container } from "react-bootstrap";
 import Sidebar from "./Sidebar";
 
 export default function MainLayout() {
+  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <div className="d-flex bg-light" style={{ height: "100vh", overflow: "hidden" }}>
       

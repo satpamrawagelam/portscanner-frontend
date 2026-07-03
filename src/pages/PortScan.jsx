@@ -105,7 +105,7 @@ export default function PortScan() {
         if (scanTitle.trim() == "") return toast.warn("Scan title cannot be empty!");
         if (selectedBranches.length === 0) return toast.warn("Please select at least 1 Branch!");
         if (portMode === "group" && !portGroupId && portGroupId !== 0 && portGroupId !== "0") {
-            return toast.warn("Please select a Port Group or All Ports option!");
+            return toast.warn("Please select a Port Group!");
         }
         if (portMode === "single" && manualPortsList.length === 0) {
             return toast.warn("Please specify at least one manual port!");
@@ -178,7 +178,7 @@ export default function PortScan() {
         if (schedTitle.trim() === "") return toast.warn("Schedule Title cannot be empty!");
         if (schedSelectedBranches.length === 0) return toast.warn("At least 1 Branch must be selected!");
         if (schedPortMode === 'single' && schedManualPortsList.length === 0) return toast.warn("Please specify at least one manual port!");
-        if (schedPortMode === 'group' && !schedPortGroupId) return toast.warn("At least 1 Group Port must be selected!");
+        if (schedPortMode === 'group' && !schedPortGroupId) return toast.warn("Please select a Port Group!");
 
         const payload = {
             Sch_title: schedTitle, Sch_frequency: schedFreq, Sch_time: schedTime + ":00",

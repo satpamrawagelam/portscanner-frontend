@@ -242,14 +242,14 @@ export default function BranchDetail() {
                             <Card.Body className="bg-light bg-opacity-25">
                                 {displayedPorts.length > 0 ? (
                                     <Row className="g-2">
-                                        {displayedPorts.map((p) => {
+                                        {displayedPorts.map((p, idx) => {
                                             const isWhitelisted = p.isWhitelisted === true; 
                                             const colorVariant = p.status ? (isWhitelisted ? "secondary" : getSeverityColor(p.severity)) : "light";
                                             const borderColor = p.status ? `border-${colorVariant}` : "border-secondary border-opacity-25";
                                             const textColor = p.status ? `text-${colorVariant}` : "text-muted opacity-75";
                                             
                                             return (
-                                                <Col xs={6} sm={4} md={3} key={p.port}>
+                                                <Col xs={6} sm={4} md={3} key={`${p.port}-${idx}`}>
                                                     <div 
                                                         onClick={() => p.status && handleOpenWhitelistModal(ipResult, p)}
                                                         style={{ cursor: p.status ? 'pointer' : 'default' }}
@@ -329,11 +329,11 @@ export default function BranchDetail() {
                         </div>
                         
                         <div style={{maxHeight: '200px', overflowY: 'auto'}}>
-                            {filteredAvailablePorts.map((p) => {
+                            {filteredAvailablePorts.map((p, idx) => {
                                 if (whitelistPortsList.includes(p.port)) return null;
                                 
                                 return (
-                                    <Dropdown.Item key={p.port} onClick={() => handleAddPort(p.port)} className="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <Dropdown.Item key={`${p.port}-${idx}`} onClick={() => handleAddPort(p.port)} className="d-flex justify-content-between align-items-center py-2 border-bottom">
                                         <span className="fw-bold text-dark small">Port {p.port}</span>
                                         <Badge bg="light" text="dark" className="border fw-normal">{p.service || 'UNKNOWN'}</Badge>
                                     </Dropdown.Item>

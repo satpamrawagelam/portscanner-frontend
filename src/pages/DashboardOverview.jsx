@@ -59,14 +59,28 @@ export default function DashboardOverview({ hideTitle = false }) {
                         subtitle="Hosts with open ports" 
                         color="danger" 
                         icon={<AlertTriangle size={32} />} 
-                        onClick={() => navigate("/vulnerable-hosts")}
+                        onClick={() => navigate("/vulnerable-hosts", { state: { filter: "vulnerable" } })}
                     />
                 </Col>
                 <Col md={4}>
-                    <StatusCard title="SAFE HOSTS" value={overviewHost?.safeHost || 0} subtitle="Hosts without open ports" color="success" icon={<CheckCircle size={32} />} />
+                    <StatusCard 
+                        title="SAFE HOSTS" 
+                        value={overviewHost?.safeHost || 0} 
+                        subtitle="Hosts without open ports" 
+                        color="success" 
+                        icon={<CheckCircle size={32} />} 
+                        onClick={() => navigate("/vulnerable-hosts", { state: { filter: "safe" } })}
+                    />
                 </Col>
                 <Col md={4}>
-                    <StatusCard title="TOTAL HOSTS SCANNED" value={overviewHost?.total || 0} subtitle="Total hosts detected active" color="primary" icon={<Server size={32} />} />
+                    <StatusCard 
+                        title="TOTAL HOSTS SCANNED" 
+                        value={overviewHost?.total || 0} 
+                        subtitle="Total hosts detected active" 
+                        color="primary" 
+                        icon={<Server size={32} />} 
+                        onClick={() => navigate("/vulnerable-hosts", { state: { filter: "all" } })}
+                    />
                 </Col>
             </Row>
 
